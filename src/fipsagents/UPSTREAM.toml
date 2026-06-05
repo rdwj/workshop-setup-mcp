@@ -1,0 +1,151 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fipsagents"
+version = "0.31.1"
+description = "Production-ready AI agent framework for FIPS/OpenShift environments"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Red Hat AI Americas"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Framework :: AsyncIO",
+    "Operating System :: OS Independent",
+]
+keywords = ["ai", "agent", "llm", "openshift", "fips", "mcp"]
+dependencies = [
+    "openai>=1.40.0",
+    "fastmcp>=3.0.0",
+    "pydantic>=2.0",
+    "pyyaml",
+    "httpx",
+    "python-frontmatter",
+]
+
+[project.optional-dependencies]
+memory = [
+    "memoryhub",
+]
+pgvector = [
+    "asyncpg>=0.29.0",
+    "pgvector>=0.3.0",
+]
+server = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "aiosqlite>=0.20.0",
+]
+metrics = [
+    "prometheus_client>=0.20",
+]
+otel = [
+    "opentelemetry-sdk>=1.20",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20",
+    "opentelemetry-api>=1.20",
+]
+kafka = [
+    "aiokafka>=0.10",
+]
+redis = [
+    "redis[hiredis]>=5.0",
+]
+feedback = [
+    "aiosqlite>=0.20.0",
+    "asyncpg>=0.29.0",
+]
+platform-client = [
+    # httpx is already a core dependency; this extra is a documentation
+    # marker for ``backend: http`` deployments routing persistence to a
+    # sibling fipsagents-platform service.
+    "httpx",
+]
+files-image = [
+    # MIME sniffing only — for agents that handle images via /v1/files
+    # but never parse binary documents.  Tens of MB instead of the ~500 MB
+    # docling pulls in via torch + transformers.  Requires libmagic at
+    # the OS level (``brew install libmagic`` on macOS, ``dnf install
+    # file-libs`` on UBI/RHEL). Falls back gracefully when libmagic is
+    # absent: server logs a warning and uses the client-supplied type.
+    "python-magic>=0.4.27",
+]
+files-text = [
+    # Document parsing for /v1/files uploads. Docling covers PDF, DOCX,
+    # PPTX, XLSX, HTML, and images. Plaintext parsing is built-in and
+    # works without docling; this extra adds binary-format support.
+    # Pulls torch + transformers transitively (~500 MB).
+    "docling>=2.30",
+    # python-magic is needed to sniff the MIME type before dispatching
+    # to docling, so it lives in this extra too.
+    "python-magic>=0.4.27",
+]
+files = [
+    # Meta-extra: the union of files-image and files-text, preserved for
+    # backward compatibility with anything pinning ``fipsagents[files]``.
+    # New deployments that only handle images should prefer
+    # ``fipsagents[files-image]`` to avoid the docling footprint.
+    "docling>=2.30",
+    "python-magic>=0.4.27",
+]
+s3 = [
+    # S3-compatible object storage for /v1/files bytes (per ADR-0001).
+    # Works against AWS S3, MinIO, GCS S3-mode, Cloudflare R2, and
+    # Backblaze B2. aioboto3 wraps boto3 with async/await; botocore is
+    # a transitive dep used directly for Config/exceptions.
+    "aioboto3>=12.0",
+]
+chunking = [
+    # Large-file chunking + pgvector retrieval for /v1/files (ADR-0002).
+    # Mirrors the [pgvector] extra — same asyncpg + pgvector deps because
+    # PgvectorChunkStore writes to a dedicated file_chunks table in the
+    # same database. tiktoken is intentionally NOT pinned here: per
+    # ADR-0002 §Decisions, FIPS builds prefer to skip the Rust extension,
+    # and RecursiveTokenChunker falls back to len(text)//4 when tiktoken
+    # is absent. Install with [chunking,tiktoken] for tighter token
+    # accounting.
+    "asyncpg>=0.29.0",
+    "pgvector>=0.3.0",
+]
+graph = [
+    "asyncpg>=0.29.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov",
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/fips-agents/agent-template"
+Repository = "https://github.com/fips-agents/agent-template"
+Issues = "https://github.com/fips-agents/agent-template/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "local_tool: Tests using local @tool dispatch",
+    "mcp_http: Tests using MCP streamable-http transport",
+    "mcp_stdio: Tests using MCP stdio transport",
+    "llamastack: Tests using LlamaStack proxy dispatch",
+    "kagenti: Tests using Kagenti Gateway dispatch",
+    "minio: Tests against a live MinIO/S3 endpoint (skipped when unreachable)",
+    "chunking_live: Tests against a live Postgres+pgvector and embedding endpoint (skipped when env unset)",
+    "platform_live: Tests against a live OGX (LlamaStack) endpoint (skipped when OGX_ENDPOINT unset)",
+    "age_live: Tests against a live Postgres+AGE endpoint (skipped when AGE_DATABASE_URL unset)",
+]

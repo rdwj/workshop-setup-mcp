@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # --- Namespaces (must exist before operator subscriptions) ---
+  - namespaces.yaml
+
+  # --- Operators ---
+  - operators/rhoai-operatorgroup.yaml
+  - operators/rhoai-subscription.yaml
+  - operators/nfd-operator.yaml
+  - operators/gpu-operator.yaml
+  - operators/authorino-operator.yaml
+  - operators/web-terminal-operator.yaml
+
+  # --- Operands (CRs created by the operators above) ---
+  # NOTE: These require the operator CRDs to exist first.
+  # When applying without Ansible orchestration, apply namespaces+operators,
+  # wait for CRDs, then apply operands in a second pass:
+  #   oc apply -k deploy/base  (will partially fail on operands — expected)
+  #   <wait for operators to install>
+  #   oc apply -k deploy/base  (second pass picks up operands)
+  - operands/nfd-instance.yaml
+  - operands/authorino-instance.yaml
+  - operands/datasciencecluster.yaml
+  - operands/odhdashboardconfig.yaml

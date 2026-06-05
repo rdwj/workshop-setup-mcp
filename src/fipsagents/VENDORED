@@ -1,0 +1,6 @@
+version: 0.9.0
+vendored: 2026-06-04 16:14 UTC
+source: https://github.com/fips-agents/agent-template
+
+This fipsagents source is vendored into the project.
+To update: fips-agents vendor --update

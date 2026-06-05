@@ -1,0 +1,4 @@
+event: pre_mcp_connect
+command: ./hooks/acquire-token.sh
+timeout: 10
+name: keycloak-token

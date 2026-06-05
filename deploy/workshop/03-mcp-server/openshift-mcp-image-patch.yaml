@@ -1,0 +1,14 @@
+# OpenShift MCP Server Image Patch
+#
+# The built-in MCP catalog references a broken image:
+#   registry.redhat.io/openshift-mcp-beta/openshift-mcp-server-rhel9:0.2
+#
+# This patch updates the MCPServer CR to use the working image.
+#
+# Run this command after deploying from the catalog or if the pod
+# is stuck in ImagePullBackOff:
+#
+#   oc patch mcpserver openshift-mcp-server -n mcp-ecosystem --type=merge -p \
+#     '{"spec": {"source": {"containerImage": {"ref": "quay.io/redhat-user-workloads/ocp-mcp-server-tenant/openshift-mcp-server-release-03:latest"}}}}'
+#
+# This is not a YAML resource -- it is a reference for the oc patch command above.

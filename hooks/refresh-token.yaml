@@ -1,0 +1,4 @@
+event: mcp_auth_refresh
+command: ./hooks/acquire-token.sh
+timeout: 10
+name: keycloak-refresh

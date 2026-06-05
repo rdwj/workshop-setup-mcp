@@ -1,0 +1,140 @@
+apiVersion: opendatahub.io/v1alpha
+kind: OdhDashboardConfig
+metadata:
+  annotations:
+    internal.config.kubernetes.io/previousKinds: OdhDashboardConfig
+    internal.config.kubernetes.io/previousNames: odh-dashboard-config
+    internal.config.kubernetes.io/previousNamespaces: default
+  name: odh-dashboard-config
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard
+    app.kubernetes.io/part-of: rhods-dashboard
+    app.opendatahub.io/rhods-dashboard: 'true'
+spec:
+  modelServing:
+    deploymentStrategy: recreate
+    isLLMdDefault: false
+  modelServerSizes:
+    - name: Small
+      resources:
+        limits:
+          cpu: '2'
+          memory: 8Gi
+        requests:
+          cpu: '1'
+          memory: 4Gi
+    - name: Medium
+      resources:
+        limits:
+          cpu: '8'
+          memory: 10Gi
+        requests:
+          cpu: '4'
+          memory: 8Gi
+    - name: Large
+      resources:
+        limits:
+          cpu: '10'
+          memory: 20Gi
+        requests:
+          cpu: '6'
+          memory: 16Gi
+  templateDisablement: []
+  hardwareProfileOrder: []
+  templateOrder: []
+  dashboardConfig:
+    enablement: true
+    disableTrustyBiasMetrics: false
+    disableProjectScoped: false
+    disableDistributedWorkloads: false
+    disableProjects: false
+    disableKueue: false
+    disableLMEval: false
+    disableSupport: false
+    disableHome: false
+    disablePipelines: false
+    disableProjectSharing: false
+    disableModelServing: false
+    disableKServe: false
+    disableNIMModelServing: true
+    disableCustomServingRuntimes: false
+    genAiStudio: true
+    disableModelRegistrySecureDB: true
+    disableStorageClasses: false
+    disableFeatureStore: false
+    disableKServeAuth: false
+    disableISVBadges: false
+    disableAdminConnectionTypes: false
+    disableUserManagement: false
+    disableInfo: false
+    disableKServeMetrics: false
+    disableModelCatalog: false
+    modelAsService: true
+    disableServingRuntimeParams: false
+    disableClusterManager: false
+    disablePerformanceMetrics: false
+    disableKServeRaw: false
+    disableBYONImageStream: false
+    disableModelRegistry: false
+    disableTracking: true
+    disableLLMd: false
+    projectRBAC: true
+    trainingJobs: true
+    observabilityDashboard: true
+    vLLMDeploymentOnMaaS: true
+    maasAuthPolicies: true
+    mcpCatalog: true
+    autorag: true
+    automl: true
+    promptManagement: true
+    aiAssetCustomEndpoints: true
+    llmGatewayField: true
+  genAiStudioConfig:
+    aiAssetCustomEndpoints:
+      externalProviders: true
+  notebookSizes:
+    - name: Tiny (Custom)
+      resources:
+        limits:
+          cpu: '1'
+          memory: 2Gi
+        requests:
+          cpu: '1'
+          memory: 2Gi
+    - name: Small
+      resources:
+        limits:
+          cpu: '2'
+          memory: 8Gi
+        requests:
+          cpu: '1'
+          memory: 8Gi
+    - name: Medium
+      resources:
+        limits:
+          cpu: '6'
+          memory: 24Gi
+        requests:
+          cpu: '3'
+          memory: 24Gi
+    - name: Large
+      resources:
+        limits:
+          cpu: '14'
+          memory: 56Gi
+        requests:
+          cpu: '7'
+          memory: 56Gi
+    - name: X Large
+      resources:
+        limits:
+          cpu: '30'
+          memory: 120Gi
+        requests:
+          cpu: '15'
+          memory: 120Gi
+  notebookController:
+    enabled: true
+    notebookNamespace: rhods-notebooks
+    pvcSize: 25Gi

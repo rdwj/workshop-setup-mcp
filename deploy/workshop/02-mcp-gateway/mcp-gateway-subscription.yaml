@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: mcp-gateway
+  namespace: openshift-operators
+spec:
+  channel: preview
+  installPlanApproval: Automatic
+  name: mcp-gateway
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

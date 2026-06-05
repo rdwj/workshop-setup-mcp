@@ -1,0 +1,112 @@
+# AuthPolicy with wristband signing for per-group tool filtering.
+#
+# The wristband JWT contains an "allowed-tools" claim in the format:
+#   {"<server-name>": ["tool1", "tool2", ...]}
+# where the server name matches the MCPServerRegistration name in the broker config,
+# and tool names are the UNPREFIXED canonical names from the backend MCP server.
+# The broker applies toolPrefix independently when exposing tools to clients.
+#
+# Tool authorization is managed via OPA Rego policy that maps Keycloak
+# groups to allowed tool lists. To add tools or groups, edit the Rego
+# inline policy below instead of hardcoding tool lists in CEL.
+#
+# Groups:
+#   mcp-admins -> admin-tools (all 14 tools)
+#   all others -> user-tools (8 read-only tools)
+#
+# Prerequisites:
+#   1. Keycloak "mcp-gateway" realm with groups (mcp-admins, mcp-users, mcp-github)
+#      and a "groups" client scope with group-membership mapper
+#   2. wristband-signing-key secret in kuadrant-system (ECDSA P-256 private key)
+#   3. wristband-public-key secret in mcp-system (ECDSA P-256 public key)
+#   4. MCPGatewayExtension patched with trustedHeadersKey referencing wristband-public-key
+#
+# Replace KEYCLOAK_ISSUER with your actual Keycloak realm URL, e.g.:
+#   https://keycloak-keycloak.apps.cluster-abc.abc.sandbox1234.opentlc.com/realms/mcp-gateway
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: mcp-gateway-auth
+  namespace: mcp-system
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    sectionName: mcps
+  defaults:
+    strategy: atomic
+    rules:
+      authentication:
+        keycloak-jwt:
+          jwt:
+            issuerUrl: KEYCLOAK_ISSUER
+      authorization:
+        tool-roles:
+          opa:
+            allValues: true
+            rego: |
+              admin_tools := [
+                "configuration_view",
+                "events_list",
+                "namespaces_list",
+                "nodes_log",
+                "nodes_stats_summary",
+                "nodes_top",
+                "pods_get",
+                "pods_list",
+                "pods_list_in_namespace",
+                "pods_log",
+                "pods_top",
+                "projects_list",
+                "resources_get",
+                "resources_list"
+              ]
+
+              user_tools := [
+                "namespaces_list",
+                "pods_get",
+                "pods_list",
+                "pods_list_in_namespace",
+                "pods_log",
+                "projects_list",
+                "resources_get",
+                "resources_list"
+              ]
+
+              is_admin {
+                input.auth.identity.groups[_] == "mcp-admins"
+              }
+
+              tools := admin_tools { is_admin }
+              tools := user_tools { not is_admin }
+
+              server_key := "mcp-ecosystem/openshift-mcp-server"
+
+              allowed_tools := json.marshal({server_key: tools})
+
+              allow := true
+      response:
+        success:
+          headers:
+            x-authorized-tools:
+              wristband:
+                issuer: http://authorino-authorino-oidc.kuadrant-system.svc.cluster.local:8083/mcp-system/mcp-gateway-auth/x-authorized-tools
+                signingKeyRefs:
+                  - name: wristband-signing-key
+                    algorithm: ES256
+                tokenDuration: 300
+                customClaims:
+                  allowed-tools:
+                    selector: auth.authorization.tool-roles.allowed_tools
+                  groups:
+                    selector: auth.identity.groups
+            # Strip the Authorization header before forwarding to the backend.
+            # Without this, the OpenShift MCP server uses the Keycloak JWT
+            # for K8s API auth instead of its ServiceAccount token, and fails.
+            authorization:
+              plain:
+                value: ""
+        unauthenticated:
+          message:
+            value: "Authentication required."

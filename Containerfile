@@ -1,0 +1,84 @@
+# =============================================================================
+# Agent Loop — Immutable Container Image
+# =============================================================================
+# Multi-stage build producing a minimal production image.
+# Everything that defines agent behavior (code, tools, prompts, skills, rules)
+# is baked in. Only env-specific config is injected at deploy time via
+# OpenShift ConfigMaps and Secrets.
+#
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Builder — install Python dependencies
+# ---------------------------------------------------------------------------
+FROM registry.redhat.io/ubi9/python-311:latest AS builder
+
+# Prevent bytecode files and enable unbuffered output during build
+ENV PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /opt/app-root/src
+
+# Install dependencies only (layer caching: deps change less than source).
+# We copy src/ here solely so setuptools can resolve the package; the actual
+# source files used at runtime come from the COPY in the runtime stage.
+COPY pyproject.toml .
+COPY src/          src/
+USER 0
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir .
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime — copy only what the agent needs
+# ---------------------------------------------------------------------------
+FROM registry.redhat.io/ubi9/python-311:latest AS runtime
+
+LABEL io.opencontainers.image.title="workshop-setup-mcp" \
+      io.opencontainers.image.version="0.5.0" \
+      io.opencontainers.image.description="BaseAgent framework — production-ready AI agent for OpenShift" \
+      io.opencontainers.image.source="https://github.com/OWNER/workshop-setup-mcp" \
+      io.opencontainers.image.vendor="Red Hat"
+
+# Unbuffered stdout/stderr so container logs appear immediately
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /opt/app-root/src
+
+# Bring installed packages from the builder stage
+COPY --from=builder /opt/app-root/lib /opt/app-root/lib
+
+# FORCE FRESH COPY: Remove any cached src/ and recopy
+RUN rm -rf src/ tools/ prompts/ skills/ rules/ scripts/
+
+# Copy agent artifacts — the full immutable set
+COPY src/         src/
+COPY tools/       tools/
+COPY prompts/     prompts/
+COPY skills/      skills/
+COPY rules/       rules/
+COPY scripts/     scripts/
+COPY hooks/       hooks/
+COPY agent.yaml   agent.yaml
+
+COPY AGENTS.md         ./
+
+# Verify files were copied correctly
+RUN echo "=== Verification: Files in src/ ===" && ls -la src/ && echo "" && echo "=== Checking agent.py for MCPGatewayAgent ===" && (grep -q "MCPGatewayAgent" src/agent.py && echo "SUCCESS: MCPGatewayAgent found" || echo "ERROR: MCPGatewayAgent NOT found")
+
+# Ensure all copied files are readable by the non-root runtime user.
+# UBI s2i images run as UID 1001 by default; group 0 (root) has read
+# access by OpenShift convention.
+USER 0
+RUN chmod -R g=u,o=r src/ tools/ prompts/ skills/ rules/ scripts/ hooks/ agent.yaml \
+    && find src/ tools/ prompts/ skills/ rules/ scripts/ hooks/ -type d -exec chmod g=u,o=rx {} + \
+    && chmod +x hooks/*.sh scripts/*.sh
+USER 1001
+
+# The agent serves OpenAI-compatible HTTP on port 8080 by default.
+# If you switch to batch mode (see src/agent.py comments), remove this line.
+EXPOSE 8080
+
+CMD ["./scripts/start-with-auth.sh"]
+
+# Marker to ensure build uses latest source
+RUN echo "BUILD_TIMESTAMP present: $(cat BUILD_TIMESTAMP 2>/dev/null || echo 'NOT FOUND')"

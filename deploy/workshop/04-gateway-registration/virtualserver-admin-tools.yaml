@@ -1,0 +1,22 @@
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPVirtualServer
+metadata:
+  name: admin-tools
+  namespace: mcp-system
+spec:
+  description: Full OpenShift cluster tools for administrators
+  tools:
+    - openshift_configuration_view
+    - openshift_events_list
+    - openshift_namespaces_list
+    - openshift_nodes_log
+    - openshift_nodes_stats_summary
+    - openshift_nodes_top
+    - openshift_pods_get
+    - openshift_pods_list
+    - openshift_pods_list_in_namespace
+    - openshift_pods_log
+    - openshift_pods_top
+    - openshift_projects_list
+    - openshift_resources_get
+    - openshift_resources_list
