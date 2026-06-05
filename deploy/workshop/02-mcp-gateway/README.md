@@ -157,7 +157,7 @@ it as the privateHost:
 
 ```bash
 oc patch mcpgatewayextension mcp-gateway -n mcp-system --type=merge -p '
-  {"spec": {"privateHost": "mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local"}}'
+  {"spec": {"privateHost": "mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080"}}'
 ```
 
 ## Step 7: Verify the Gateway
