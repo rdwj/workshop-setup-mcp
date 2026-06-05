@@ -4,6 +4,12 @@ This module creates the Kubernetes resources that MCP servers need before they c
 
 **Prerequisites** -- Module 2 completed. The MCP Gateway namespace exists.
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/03-mcp-server-prerequisites
+> ```
+
 ---
 
 ## Why This Is a Separate Step
@@ -19,7 +25,8 @@ For a deeper look at how the authorization stack is structured, see [Layered Aut
 Create a namespace for MCP server workloads:
 
 ```bash
-oc apply -f ../04-mcp-server/mcp-ecosystem-namespace.yaml
+oc create namespace mcp-ecosystem
+oc label namespace mcp-ecosystem istio-injection=enabled
 ```
 
 ---

@@ -4,7 +4,7 @@ metadata:
   name: openshift-mcp-server
   namespace: mcp-ecosystem
 spec:
-  toolPrefix: openshift_
+  prefix: openshift_
   path: /mcp
   targetRef:
     kind: HTTPRoute

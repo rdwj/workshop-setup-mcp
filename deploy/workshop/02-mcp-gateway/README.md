@@ -6,6 +6,12 @@ will have a working MCP Gateway ready to accept server registrations.
 
 **Prerequisites** -- Module 1 completed. A GatewayClass exists in the cluster.
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/02-mcp-gateway
+> ```
+
 ---
 
 ## Step 1: Install the MCP Gateway Operator
@@ -35,8 +41,9 @@ This installs `mcp-gateway.v0.6.0`. It can take 2-3 minutes.
 > If you see any with `APPROVED=false`, approve them:
 >
 > ```bash
-> oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}' | \
->   xargs -I{} oc patch installplan {} -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+> for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+>   oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+> done
 > ```
 
 ## Step 2: Install the MCP Lifecycle Operator
@@ -170,11 +177,14 @@ Also verify the MCPGatewayExtension is Ready:
 oc get mcpgatewayextension mcp-gateway -n mcp-system -o jsonpath='{.status.conditions}' | python3 -m json.tool
 ```
 
-Finally, verify the broker pod is running:
+Finally, verify the pods are running:
 
 ```bash
-oc get pods -n mcp-system | grep broker
+oc get pods -n mcp-system
 ```
+
+You should see two pods: the broker (`mcp-gateway-*`) and the Istio
+gateway (`mcp-gateway-data-science-gateway-class-*`).
 
 ---
 

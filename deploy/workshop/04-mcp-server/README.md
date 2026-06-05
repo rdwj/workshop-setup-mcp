@@ -6,6 +6,12 @@ with the built-in catalog image and learn how to work around it.
 
 **Prerequisites** -- Module 3 completed. The mcp-ecosystem namespace, ServiceAccount, and ConfigMap exist.
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/04-mcp-server
+> ```
+
 ---
 
 ## Step 1: (Optional) Deploy via the RHOAI Dashboard
@@ -101,8 +107,11 @@ including the list of supported methods:
 oc exec -n mcp-ecosystem deploy/openshift-mcp-server -- curl -s http://localhost:8080/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
-  | python3 -m json.tool
+  | grep '^data: ' | sed 's/^data: //' | python3 -m json.tool
 ```
+
+The server responds using SSE (Server-Sent Events) format. The `grep`
+and `sed` extract the JSON payload from the `data:` line.
 
 You should see a response with `serverInfo` and `capabilities` including
 `tools` -- confirming the server is ready.

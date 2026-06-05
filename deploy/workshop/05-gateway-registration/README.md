@@ -9,6 +9,12 @@ different user roles.
 running in `mcp-ecosystem`. The MCP Gateway and broker are running in
 `mcp-system`.
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/05-gateway-registration
+> ```
+
 ---
 
 ## Step 1: Create the HTTPRoute
@@ -58,16 +64,16 @@ oc label namespace mcp-ecosystem istio-injection=enabled --overwrite
 ## Step 4: Create the MCPServerRegistration
 
 The MCPServerRegistration tells the MCP broker about the backend server and
-assigns a `toolPrefix`. All tools from this server will be prefixed with
+assigns a `prefix`. All tools from this server will be prefixed with
 `openshift_` (e.g., `pods_list` becomes `openshift_pods_list`):
 
 ```bash
 oc apply -f mcpserverregistration.yaml
 ```
 
-### Known Issue: toolPrefix is Immutable
+### Known Issue: prefix is Immutable
 
-The `toolPrefix` field cannot be changed after the MCPServerRegistration is
+The `prefix` field cannot be changed after the MCPServerRegistration is
 created because it affects tool routing in the broker's configuration cache.
 If you need a different prefix, you must delete and recreate the resource.
 Plan your naming convention before applying -- common patterns include
@@ -94,14 +100,19 @@ After the broker restarts, test that tools are visible through the gateway.
 > `initialize` method instead:
 
 ```bash
-curl -s http://mcp-gateway.mcp.$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}'):8080/mcp \
+CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
+oc exec -n mcp-system deploy/mcp-gateway -- \
+  curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
   | python3 -m json.tool
 ```
 
-The response should include `serverInfo` and `capabilities` with `tools`,
-confirming the broker is serving registered tools.
+This runs curl from inside the cluster against the Istio gateway service,
+with a `Host` header matching the HTTPRoute. The response should include
+`serverInfo` from the "Kuadrant MCP Gateway" confirming the broker is
+serving registered tools.
 
 For a full tool listing, the expected set is 14 tools, all prefixed with `openshift_`:
 
@@ -151,7 +162,7 @@ Verify both are created:
 oc get mcpvirtualservers -n mcp-system
 ```
 
-These VirtualMCPServers are referenced later in AuthPolicy configurations
+These MCPVirtualServers are referenced later in AuthPolicy configurations
 (Module 6) to route users to different tool subsets based on their identity.
 
 ---
@@ -162,6 +173,6 @@ These VirtualMCPServers are referenced later in AuthPolicy configurations
 |---|---|---|
 | HTTPRoute | mcp-ecosystem | Routes `openshift.mcp.<domain>` to the MCP server |
 | ReferenceGrant | mcp-system | Allows cross-namespace Gateway reference |
-| MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (toolPrefix: openshift_) |
+| MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: openshift_) |
 | MCPVirtualServer (admin-tools) | mcp-system | Full 14-tool set for administrators |
 | MCPVirtualServer (user-tools) | mcp-system | 8-tool read-only subset for developers |

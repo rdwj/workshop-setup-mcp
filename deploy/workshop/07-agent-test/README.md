@@ -14,6 +14,12 @@ between admin and user-level access.
 - Module 6 complete (Keycloak + AuthPolicy deployed)
 - Agent, gateway proxy, and chat UI running in `workshop-setup-mcp` namespace
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/07-agent-test
+> ```
+
 ## Variables
 
 ```bash
@@ -229,10 +235,23 @@ USER_TOKEN=$(curl -sk -X POST \
   -d "scope=openid groups" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
-curl -s "${MCP_GATEWAY_URL}" \
+# Initialize first (required by streamable-http protocol)
+SESSION_ID=$(oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
+  curl -sv http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
   -H "Authorization: Bearer ${USER_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
+  2>&1 | grep -i 'mcp-session-id' | head -1 | awk '{print $3}' | tr -d '\r')
+
+# Then tools/list with the session
+oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
+  curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
+  -H "Authorization: Bearer ${USER_TOKEN}" \
+  -H "Mcp-Session-Id: ${SESSION_ID}" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":2}' \
   | python3 -c "
 import sys, json
 tools = json.load(sys.stdin).get('result', {}).get('tools', [])

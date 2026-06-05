@@ -7,7 +7,7 @@ tool-level authorization -- encoding per-group tool permissions.
 After this module, the gateway will:
 - Require a valid JWT from Keycloak on every request
 - Map Keycloak groups to tool permission sets via OPA Rego policy
-- Issue a short-lived wristband token containing an `allowed-tools` claim
+- Issue a short-lived wristband token containing an `allowed-capabilities` claim
 - Return 401 for unauthenticated requests
 
 **Time:** 30--45 minutes
@@ -15,6 +15,12 @@ After this module, the gateway will:
 **Prerequisites:**
 - Modules 1--5 complete (gateway infrastructure, MCP Gateway, MCP server prerequisites, MCP server, registration)
 - `openssl` available on your workstation
+
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/06-identity-auth
+> ```
 
 > **Note:** The RHBK operator may inherit Manual InstallPlan approval from
 > other operators on the cluster. If the CSV doesn't appear after 3 minutes,
@@ -154,7 +160,7 @@ silently -- you get fewer tools with no error message.
 The wristband mechanism works as follows:
 1. Authorino validates the Keycloak JWT
 2. OPA Rego determines the allowed tools based on the user's groups
-3. Authorino signs a short-lived wristband JWT containing `allowed-tools`
+3. Authorino signs a short-lived wristband JWT containing `allowed-capabilities`
 4. The broker reads the wristband and filters the tool list
 
 Generate an ECDSA P-256 key pair and create the secrets:
@@ -182,7 +188,7 @@ oc get mcpgatewayextension mcp-gateway -n mcp-system --context="$CTX" \
 The AuthPolicy configures:
 - JWT authentication against the Keycloak issuer
 - OPA Rego authorization mapping groups to tool lists
-- Wristband token issuance with the `allowed-tools` claim
+- Wristband token issuance with the `allowed-capabilities` claim
 - Authorization header stripping (see known issue below)
 
 Replace the Keycloak issuer URL and apply:
@@ -242,8 +248,6 @@ echo "Client secret: ${CLIENT_SECRET}"
 Request a token (note `scope=openid groups`):
 
 ```bash
-MCP_GATEWAY_URL="http://mcp-gateway.mcp.${CLUSTER_DOMAIN}"
-
 TOKEN=$(curl -sk -X POST \
   "${KEYCLOAK_URL}/realms/mcp-gateway/protocol/openid-connect/token" \
   -d "client_id=mcp-gateway" \
@@ -260,19 +264,24 @@ Verify the gateway responds to an authenticated `initialize` request:
 > which returns server capabilities.
 
 ```bash
-curl -s "${MCP_GATEWAY_URL}/mcp" \
+oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
+  curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
   | python3 -m json.tool
 ```
 
-**Expected:** A response with `serverInfo` and `capabilities` including `tools`.
+**Expected:** A response with `serverInfo` from "Kuadrant MCP Gateway" and `capabilities` including `tools`.
 
 Test unauthenticated access:
 
 ```bash
-curl -s -o /dev/null -w "HTTP %{http_code}\n" "${MCP_GATEWAY_URL}/mcp" \
+oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
+  curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+  http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 ```
@@ -320,8 +329,8 @@ Keycloak (mcp-gateway realm)
 MCP Gateway (AuthPolicy)
   |
   |  1. Validate JWT (Authorino)
-  |  2. OPA Rego: groups -> allowed-tools
-  |  3. Sign wristband with allowed-tools claim
+  |  2. OPA Rego: groups -> allowed-capabilities
+  |  3. Sign wristband with allowed-capabilities claim
   |  4. Strip Authorization header
   |
   v
