@@ -20,7 +20,7 @@ Before a server can be deployed and registered, it must be packaged as a complia
 
 | Check | Detail |
 | :---- | :---- |
-| **HTTP Streamable or SSE** | Stdio-only servers cannot be routed through the gateway, shared across clients, or secured with AuthPolicies. Verify the server communicates over HTTP. |
+| **HTTP Streamable (preferred) or SSE (legacy)** | Stdio-only servers cannot be routed through the gateway, shared across clients, or secured with AuthPolicies. Verify the server communicates over HTTP. Streamable HTTP is the current MCP transport standard; SSE is accepted for backward compatibility but is deprecated as a standalone transport. |
 | **Tool discovery** | The server must respond to `tools/list` so the gateway broker can discover and advertise available tools. Verify `tools/call` executes correctly for each advertised tool. |
 | **OCI image** | The server must be published as a pullable OCI container image. |
 | **Vulnerability scan** | Scan the image with Clair (or an equivalent scanner) and resolve any impacting CVE vulnerabilities before deploying. |
@@ -37,6 +37,7 @@ Before a server can be deployed and registered, it must be packaged as a complia
 | No privilege escalation | `allowPrivilegeEscalation: false` |
 | No host access | Must not require host networking, host PID, or privileged mode. |
 | Read-only root filesystem | Set `readOnlyRootFilesystem: true` where possible. If the server writes to the filesystem, use `emptyDir` or PVC mounts for writable paths. |
+| Seccomp profile | `seccompProfile: { type: RuntimeDefault }` — required by the `restricted-v2` SCC. Set explicitly or leave unset (the SCC defaults it). |
 | Base image | UBI or Red Hat-supported base image (see Container Packaging above). |
 
 Reference: [OpenShift SCC documentation](https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html)
@@ -54,6 +55,11 @@ Reference: [OpenShift SCC documentation](https://docs.openshift.com/container-pl
 | `spec.runtime.replicas` | Replica count |
 | `spec.runtime.security.serviceAccountName` | ServiceAccount for the server pod |
 | `spec.runtime.security.securityContext` | Pod-level security context overrides |
+| `spec.config.envFrom[]` | Bulk environment variable injection from ConfigMaps or Secrets |
+| `spec.runtime.resources` | CPU and memory requests and limits |
+| `spec.runtime.health.livenessProbe` | Kubernetes liveness probe configuration |
+| `spec.runtime.health.readinessProbe` | Kubernetes readiness probe configuration |
+| `spec.runtime.security.podSecurityContext` | Pod-level security context (vs. container-level `securityContext`) |
 
 If the server appears to require configuration mechanisms not directly supported by the CRD — runtime-generated config files, init containers, sidecar processes — first evaluate whether the same outcome can be achieved through one of the supported mechanisms (e.g., pre-generating the config file into a ConfigMap and mounting it via `config.storage`, or moving initialization logic into the entrypoint and controlling it via `config.arguments` or `config.env`). Only if none of the CRD-supported options can cover the requirement should a raw Deployment \+ Service be used instead of the `MCPServer` CR.
 
@@ -198,5 +204,5 @@ Once the server is published to the catalog, deploy it into the ecosystem using 
 
 1. **Deploy the server** via `MCPServer` CR (section 5.2.2). For servers whose configuration cannot be fully expressed through the CRD (see section 8.1), deploy using a standard Deployment \+ Service instead.  
 2. **Register with the gateway** by creating an HTTPRoute and MCPServerRegistration (section 5.2.3).  
-3. **Configure access control** if needed — create or update AuthPolicies for per-user credential injection or group-based restrictions (sections 5.1.4–5.1.6), and assign the server's tools to the appropriate VirtualMCPServers.
+3. **Configure access control** if needed — create or update AuthPolicies for per-user credential injection or group-based restrictions (sections 5.1.4–5.1.6), and assign the server's tools to the appropriate MCPVirtualServers.
 

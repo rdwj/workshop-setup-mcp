@@ -6,7 +6,7 @@
 
 ### **Demos**
 
-* [MCP Ecosystem Setup Demo](https://youtu.be/ncwSVtc_6Qo) — walkthrough of platform engineer setup: operators, gateway, Keycloak, Vault, AuthPolicies, and VirtualMCPServers.  
+* [MCP Ecosystem Setup Demo](https://youtu.be/ncwSVtc_6Qo) — walkthrough of platform engineer setup: operators, gateway, Keycloak, Vault, AuthPolicies, and MCPVirtualServers.  
 * [MCP Ecosystem Usage Demo](https://youtu.be/Fb3GXLJxfyQ) — end-to-end usage: catalog browsing, server deployment, Playground interaction, and tool invocation.
 
 ### **MCP Gateway (Kuadrant)**

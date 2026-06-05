@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mcp-catalog-sources
-  namespace: odh-model-registries
+  namespace: rhoai-model-registries
 data:
   sources.yaml: |
     mcp_catalogs:

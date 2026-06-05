@@ -8,7 +8,7 @@ The platform engineer is responsible for the provisioning and management of the 
 * MCP Server Lifecycle Management: This involves the deployment, configuration, and ongoing maintenance of MCP servers.  
 * Identity Management: This requires the configuration of Keycloak realms, clients, users, groups, and roles.  
 * Access Control: This necessitates the definition of AuthPolicy resources to facilitate JWT validation, granular per-tool authorization, and secure credential injection.  
-* Tool Curation: This is managed through the creation of VirtualMCPServer resources to control the visibility of tools based on user group membership.  
+* Tool Curation: This is managed through the creation of MCPVirtualServer resources to control the visibility of tools based on user group membership.  
 * Monitoring: This involves observing gateway operational health, server registration status, and the enforcement of authentication policies.
 
 The platform engineer's primary workflow involves the use of Kubernetes manifests, Keycloak administrative APIs, and oc/kubectl command-line tools. The role does not require application code development.
@@ -20,7 +20,7 @@ The AI engineer accesses and utilizes the MCP tools via Gen AI Studio or through
 * Authentication: Logging in with requisite credentials, typically managed through Keycloak.  
 * Tool Discovery: Identifying the available tools, which are filtered based on the user's assigned role or group.  
 * Tool Invocation: Executing tools either through natural language commands within the Playground environment or by employing the standard MCP protocol.  
-* Abstraction of Infrastructure: The AI engineer is not required to possess knowledge concerning the underlying infrastructure components, such as Kubernetes, Vault, VirtualMCPServers, AuthPolicies, or the specific MCP servers deployed on the cluster.
+* Abstraction of Infrastructure: The AI engineer is not required to possess knowledge concerning the underlying infrastructure components, such as Kubernetes, Vault, MCPVirtualServers, AuthPolicies, or the specific MCP servers deployed on the cluster.
 
 The AI engineer's interaction is exclusively governed by the standard MCP protocol. All complexities related to the infrastructure are effectively abstracted and managed by the platform engineer's configuration.
 
@@ -33,7 +33,7 @@ The following table illustrates how platform configuration translates into a sea
 | Platform Engineer Configuration | AI Engineer Experience |
 | :---- | :---- |
 | Configures Keycloak groups and users. | "I can log in and instantly get an access token." |
-| Sets up VirtualMCPServers and the gateway's AuthPolicy. | "I only see the tools that are relevant to my specific role." |
+| Sets up MCPVirtualServers and the gateway's AuthPolicy. | "I only see the tools that are relevant to my specific role." |
 | Implements AuthPolicy with CEL predicates for specific HTTPRoutes. | "I can successfully call my necessary tools; my unauthorized attempts are automatically blocked." |
 | Manages Vault secrets and configures metadata evaluators. | "My tools just function without issues—I don't have to deal with managing API keys." |
 | Defines the Namespace, Gateway, and MCPGatewayExtension. | "I have a single, unified URL for all my connections in my namespace." |
@@ -61,7 +61,7 @@ Key Rationale: This pattern prioritizes security and stability. The Platform Eng
 | Server Deployment & Lifecycle |  |  |
 | MCPServer CRs (Deploy Servers) | Owns | — |
 | Tool Curation |  |  |
-| VirtualMCPServers | Owns | — |
+| MCPVirtualServers | Owns | — |
 | Usage |  |  |
 | Authenticate and get token | — | Owns |
 | tools/list, tools/call | — | Owns |
@@ -80,7 +80,7 @@ Key Rationale:
 * Empowerment and Ownership: The AI team, being closest to the technical needs, takes full ownership of the server lifecycle, from deployment to management.  
 * Safety and Control: The Platform Engineer provides essential governance through guardrails (e.g., namespace quotas, network policies, default authentication). The AI Engineer operates strictly within these defined limits.  
 * Alignment with OpenShift Model: This pattern mirrors the standard OpenShift philosophy where the platform team manages the cluster infrastructure, and application teams manage their specific workloads (the MCPServer in this case).  
-* Explicit Access Control: While deployment is self-service (AI Engineer creates the MCPServer CR), the Platform Engineer maintains control over access to the deployed tools via AuthPolicies and VirtualMCPServers, ensuring security is enforced.
+* Explicit Access Control: While deployment is self-service (AI Engineer creates the MCPServer CR), the Platform Engineer maintains control over access to the deployed tools via AuthPolicies and MCPVirtualServers, ensuring security is enforced.
 
 | Resource / Action | Platform Engineer | AI Engineer |
 | :---- | :---- | :---- |
@@ -92,16 +92,16 @@ Key Rationale:
 | Server Deployment & Lifecycle |  |  |
 | MCPServer CRs (Deploy Servers) | — | Owns |
 | Tool Curation |  |  |
-| VirtualMCPServers | Owns (or shared) | May request changes |
+| MCPVirtualServers | Owns (or shared) | May request changes |
 | Usage |  |  |
 | Authenticate and get token | — | Owns |
 | tools/list, tools/call | — | Owns |
 
 #### 6.4.3 AI Engineer Manages Tool Curation for LLMs
 
-Best Used For: Empowering AI engineers to define a limited, purpose-built set of tools for an LLM-powered application or agent without requiring intervention from the Platform Engineer. The AI engineer uses VirtualMCPServers to scope the tool set for specific LLM agents, not to change their security permissions.
+Best Used For: Empowering AI engineers to define a limited, purpose-built set of tools for an LLM-powered application or agent without requiring intervention from the Platform Engineer. The AI engineer uses MCPVirtualServers to scope the tool set for specific LLM agents, not to change their security permissions.
 
-Key Rationale: LLMs perform more efficiently and accurately with a focused set of tools. The VirtualMCPServer Custom Resource allows AI engineers to create narrow, application-specific tool views, which limits noise, reduces token usage, and increases tool-calling performance.
+Key Rationale: LLMs perform more efficiently and accurately with a focused set of tools. The MCPVirtualServer Custom Resource allows AI engineers to create narrow, application-specific tool views, which limits noise, reduces token usage, and increases tool-calling performance.
 
 | Resource / Action | Platform Engineer | AI Engineer |
 | :---- | :---- | :---- |
@@ -113,12 +113,12 @@ Key Rationale: LLMs perform more efficiently and accurately with a focused set o
 | Server Deployment & Lifecycle |  |  |
 | MCPServer CRs (Deploy Servers) | — | Owns |
 | Tool Curation |  |  |
-| VirtualMCPServers | — | Owns |
+| MCPVirtualServers | — | Owns |
 | Usage |  |  |
 | Authenticate and get token | — | Owns |
 | tools/list, tools/call | — | Owns |
 
-VirtualMCPServers are subtractive only — they filter but cannot expand access. See section 9.1 for details on how they interact with AuthPolicies.
+MCPVirtualServers are subtractive only — they filter but cannot expand access. See section 9.1 for details on how they interact with AuthPolicies.
 
 #### 6.4.4 AI Engineer as Namespace Admin
 
@@ -136,7 +136,7 @@ Key Rationale: To provide maximum autonomy for the AI team, allowing them to own
 | Server Deployment & Lifecycle |  |  |
 | MCPServer CRs (Deploy Servers) | — | Owns |
 | Tool Curation |  |  |
-| VirtualMCPServers | — | Owns |
+| MCPVirtualServers | — | Owns |
 | Usage |  |  |
 | Authenticate and get token | — | Owns |
 | tools/list, tools/call | — | Owns |
@@ -144,7 +144,7 @@ Key Rationale: To provide maximum autonomy for the AI team, allowing them to own
 The key difference is the significant shift in scope:
 
 * The Platform Engineer's scope shrinks to shared infrastructure and initial namespace provisioning.  
-* The AI Team must possess higher required expertise, including a deep understanding of AuthPolicies, Vault integration, and VirtualMCPServers.
+* The AI Team must possess higher required expertise, including a deep understanding of AuthPolicies, Vault integration, and MCPVirtualServers.
 
 The Platform Engineer can mitigate this complexity by providing templates or Helm charts to reduce boilerplate configuration for the AI team.
 

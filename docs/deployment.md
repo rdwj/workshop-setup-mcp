@@ -190,9 +190,11 @@ MCP_AUTH_TOKEN=
 Point the agent at the MCP Gateway service and provide a JWT:
 
 ```
-MCP_GATEWAY_URL=http://mcp-gateway.<mcp-namespace>.svc.cluster.local:8080/mcp
+MCP_GATEWAY_URL=http://mcp-gateway-<gatewayclass-name>.<mcp-namespace>.svc.cluster.local:8080/mcp
 MCP_AUTH_TOKEN=<jwt-from-keycloak>
 ```
+
+**Important:** Connect to the Istio gateway service (`mcp-gateway-<gatewayclass-name>`), not the broker service (`mcp-gateway`). The broker responds to `tools/list` from cache, which gives a false impression that everything works, but `tools/call` requests sent directly to the broker bypass the ext_proc authorization chain. On RHOAI, the GatewayClass is typically `data-science-gateway-class`, making the service name `mcp-gateway-data-science-gateway-class`. See `docs/MCP-Ecosystem/09-best-practices.md` section 9.1.3.
 
 To obtain a JWT from Keycloak:
 

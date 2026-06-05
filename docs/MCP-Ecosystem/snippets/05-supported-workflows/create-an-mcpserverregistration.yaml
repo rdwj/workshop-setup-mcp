@@ -3,7 +3,7 @@ kind: MCPServerRegistration
 metadata:
   name: openshift-mcp-server
 spec:
-  toolPrefix: openshift_
+  prefix: openshift_
   targetRef:
     group: gateway.networking.k8s.io
     kind: HTTPRoute

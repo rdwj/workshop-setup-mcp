@@ -84,7 +84,7 @@ Complete setup and usage workflows for platform engineers and AI engineers.
 - **5.1.4 Configuring Gateway-Level Authentication (AuthPolicy)**
   - JWT authentication
   - Wristband signing for per-tool authorization
-  - VirtualMCPServer routing
+  - MCPVirtualServer routing
 - **5.1.5 Configuring Per-Tool Authorization (CEL Predicates)**
   - Per-server access restriction
   - Header manipulation
@@ -122,9 +122,9 @@ Complete setup and usage workflows for platform engineers and AI engineers.
   - Servers that require credentials for tool discovery
   - Verification
 - **5.2.4 Creating and Using Virtual MCP Servers**
-  - Creating a VirtualMCPServer
-  - How VirtualMCPServer selection works
-  - VirtualMCPServers are subtractive only
+  - Creating a MCPVirtualServer
+  - How MCPVirtualServer selection works
+  - MCPVirtualServers are subtractive only
 - **5.2.5 Consuming MCP Capabilities in Gen AI Studio / Playground**
   - Obtaining an auth token
   - Enabling tool use in the Playground
@@ -150,7 +150,7 @@ Platform configuration creates self-service experience for AI engineers.
 #### Responsibility Distribution Alternatives
 - **6.4.1 Platform-Managed (Centralized Control)** — best for compliance environments
 - **6.4.2 Self-Service Server Registration** — AI teams deploy servers, platform controls access
-- **6.4.3 AI Engineer Manages Tool Curation for LLMs** — AI engineers create VirtualMCPServers for focused tool sets
+- **6.4.3 AI Engineer Manages Tool Curation for LLMs** — AI engineers create MCPVirtualServers for focused tool sets
 - **6.4.4 AI Engineer as Namespace Admin** — autonomous teams with full control
 
 ### 07-namespace-isolation.md
@@ -193,8 +193,8 @@ Deploy via MCPServer CR, register with gateway via HTTPRoute and MCPServerRegist
 Security considerations and topology guidance.
 
 #### 9.1 Security Considerations and Recommended Patterns
-- **9.1.1 Design tool subsets for different audiences** — admin, specialized, basic tool sets via VirtualMCPServers
-- **9.1.2 VirtualMCPServers are not an access control mechanism** — they filter visibility, not authorization. Four-layer authorization stack explained.
+- **9.1.1 Design tool subsets for different audiences** — admin, specialized, basic tool sets via MCPVirtualServers
+- **9.1.2 MCPVirtualServers are not an access control mechanism** — they filter visibility, not authorization. Four-layer authorization stack explained.
 
 #### 9.2 Gateway Topology: When to Use Gateway-per-Team
 Start with shared gateway for simplicity. Graduate to gateway-per-team for:
@@ -234,7 +234,7 @@ Contains 19 code/YAML snippets referenced in section 5 (setup and usage workflow
 - Gateway Helm configurations
 - AuthPolicy examples
 - Vault setup scripts
-- VirtualMCPServer definitions
+- MCPVirtualServer definitions
 - MCPServer CR examples
 
 ### snippets/08-bring-your-own-mcp-server/

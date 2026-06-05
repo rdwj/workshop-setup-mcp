@@ -9,14 +9,14 @@ The choice of how many gateways and namespaces back a deployment is orthogonal t
 
 Gateway topology is flexible — the platform can support any number of gateways, each scoping a different set of servers. Common topologies include:
 
-* **Single shared gateway.** One gateway for all teams and all servers. Simplest to operate; teams are separated by policy (AuthPolicies, VirtualMCPServers, Keycloak groups). Suitable for single-team deployments or multi-team environments with high trust.  
+* **Single shared gateway.** One gateway for all teams and all servers. Simplest to operate; teams are separated by policy (AuthPolicies, MCPVirtualServers, Keycloak groups). Suitable for single-team deployments or multi-team environments with high trust.  
 * **Gateway per team.** Each team gets its own gateway, namespace, and broker. Isolation is physical (Kubernetes RBAC, NetworkPolicy, namespace boundaries) rather than policy-based. Suitable when compliance or blast-radius containment requires hard separation.  
 * **Gateway per server class.** Gateways are organized by the type of servers behind them rather than by team — for example, one gateway for platform-provided servers (OpenShift tools, built-in utilities) and another for customer-provided or third-party servers. This separates trust domains based on server provenance rather than consumer identity.  
 * **Hybrid.** Combinations of the above — for example, a shared gateway for vetted platform servers plus per-team gateways for each team’s custom servers.
 
 The Gateway API model supports all of these: each Gateway is an independent Envoy instance with its own listeners, broker, and set of registered servers. The choice depends on the organization’s trust model, compliance requirements, and operational preferences.
 
-This document focuses on the first two topologies — **shared gateway** and **gateway per team** — as they represent the two ends of the isolation spectrum and cover the most common deployment patterns. The principles and mechanisms (AuthPolicies, VirtualMCPServers, HTTPRoutes, MCPServerRegistrations) apply equally to hybrid or server-class topologies.
+This document focuses on the first two topologies — **shared gateway** and **gateway per team** — as they represent the two ends of the isolation spectrum and cover the most common deployment patterns. The principles and mechanisms (AuthPolicies, MCPVirtualServers, HTTPRoutes, MCPServerRegistrations) apply equally to hybrid or server-class topologies.
 
 #### 7.2 Component Disposition by Topology
 
@@ -54,23 +54,23 @@ The table below maps every component to its disposition in the two primary topol
 | HTTPRoutes | All in one namespace | Per-team namespace | Route per server; references the team’s Gateway |
 | MCPServerRegistrations | All in one namespace | Per-team namespace | Registers server with the broker |
 | Policy & tool curation |  |  |  |
-| AuthPolicy (gateway-level JWT) | Shared (one) | Per-team | JWT validation \+ group→VirtualMCPServer routing |
+| AuthPolicy (gateway-level JWT) | Shared (one) | Per-team | JWT validation \+ group→MCPVirtualServer routing |
 | AuthPolicy (per-server / per-tool) | Shared namespace | Per-team namespace | Tool-level ACLs, Vault credential injection |
-| VirtualMCPServers | Shared namespace (one per group) | Per-team namespace | Tool views; CEL ternary selects by group in shared model |
+| MCPVirtualServers | Shared namespace (one per group) | Per-team namespace | Tool views; CEL ternary selects by group in shared model |
 
 #### 7.3 Shared Gateway, Policy-Isolated Teams
 
 ![][image16]
 
-One namespace, one Gateway, one Envoy, one broker. All teams’ MCP servers, AuthPolicies, and VirtualMCPServers coexist in the same namespace. Teams are separated by Keycloak groups and CEL predicates in AuthPolicies. A single RHOAI ConfigMap points all OGX instances at the same gateway URL.
+One namespace, one Gateway, one Envoy, one broker. All teams’ MCP servers, AuthPolicies, and MCPVirtualServers coexist in the same namespace. Teams are separated by Keycloak groups and CEL predicates in AuthPolicies. A single RHOAI ConfigMap points all OGX instances at the same gateway URL.
 
 What’s shared (beyond operators): The Gateway, Envoy, broker, Route, and namespace itself. The broker’s config Secret aggregates all teams’ servers into one upstream list.
 
-What’s logically partitioned: VirtualMCPServers (one per group/team, selected by CEL ternary in the gateway AuthPolicy), per-server AuthPolicies (CEL predicates check group membership), and Keycloak groups/roles.
+What’s logically partitioned: MCPVirtualServers (one per group/team, selected by CEL ternary in the gateway AuthPolicy), per-server AuthPolicies (CEL predicates check group membership), and Keycloak groups/roles.
 
 When to use: Single-team deployments, early-stage adoption, or multi-team environments where teams trust each other and compliance requirements do not mandate physical separation. This is the simpler topology and a reasonable starting point.
 
-Trade-off: Isolation relies entirely on AuthPolicy correctness. The broker sees all servers. If a VirtualMCPServer or AuthPolicy is misconfigured, a user may see or call tools from another team. See section 9.2 for guidance on when to consider moving to the gateway-per-team topology.
+Trade-off: Isolation relies entirely on AuthPolicy correctness. The broker sees all servers. If an MCPVirtualServer or AuthPolicy is misconfigured, a user may see or call tools from another team. See section 9.2 for guidance on when to consider moving to the gateway-per-team topology.
 
 Transition path: Moving to gateway-per-team does not require changing the ownership model (who owns which CRs) — only the namespace and gateway topology changes.
 
@@ -78,11 +78,11 @@ Transition path: Moving to gateway-per-team does not require changing the owners
 
 ![][image17]
 
-Each team gets its own namespace containing a Gateway, Envoy proxy, broker, MCP servers, AuthPolicies, and VirtualMCPServers. Isolation is physical — Kubernetes RBAC, NetworkPolicy, and namespace boundaries enforce separation independently of AuthPolicy correctness. A misconfigured AuthPolicy or VirtualMCPServer affects only the team that owns it.
+Each team gets its own namespace containing a Gateway, Envoy proxy, broker, MCP servers, AuthPolicies, and MCPVirtualServers. Isolation is physical — Kubernetes RBAC, NetworkPolicy, and namespace boundaries enforce separation independently of AuthPolicy correctness. A misconfigured AuthPolicy or MCPVirtualServer affects only the team that owns it.
 
 What’s shared: Cluster-scoped operators (MCP Gateway, lifecycle, Kuadrant, Service Mesh, cert-manager), Keycloak, Vault, and RHOAI platform components (DataScienceCluster, Dashboard). These are infrastructure services that don’t hold team-specific tool or policy configuration.
 
-What’s replicated per team: Gateway \+ Envoy \+ Route, MCPGatewayExtension \+ broker, all MCPServer CRs and their downstream resources (Deployments, HTTPRoutes, MCPServerRegistrations), AuthPolicies, VirtualMCPServers, the RHOAI ConfigMap pointing OGX at the team’s gateway URL, and the OGX / vLLM inference stack itself.
+What’s replicated per team: Gateway \+ Envoy \+ Route, MCPGatewayExtension \+ broker, all MCPServer CRs and their downstream resources (Deployments, HTTPRoutes, MCPServerRegistrations), AuthPolicies, MCPVirtualServers, the RHOAI ConfigMap pointing OGX at the team’s gateway URL, and the OGX / vLLM inference stack itself.
 
 When to use: Multi-team environments with compliance requirements (SOC2, HIPAA, FedRAMP), teams that don’t fully trust each other, or any situation where a misconfigured policy must not leak tools or credentials across teams.
 

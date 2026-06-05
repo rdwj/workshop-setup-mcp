@@ -24,8 +24,10 @@ config:
   KEYCLOAK_REALM: mcp-gateway
   KEYCLOAK_CLIENT_ID: workshop-agent
   KEYCLOAK_CLIENT_SECRET: <your-client-secret>
-  MCP_GATEWAY_URL: http://mcp-gateway-broker.mcp-system.svc.cluster.local:8080/mcp
+  MCP_GATEWAY_URL: http://mcp-gateway-<gatewayclass-name>.<gateway-namespace>.svc.cluster.local:8080/mcp
 ```
+
+**Important:** Use the Istio gateway service (`mcp-gateway-<gatewayclass-name>`), not the broker. On RHOAI, this is typically `mcp-gateway-data-science-gateway-class`. Connecting directly to the broker bypasses all gateway-level authorization. See `docs/MCP-Ecosystem/09-best-practices.md` section 9.1.3.
 
 **Note**: For production deployments, use a Secret for `KEYCLOAK_CLIENT_SECRET`:
 
