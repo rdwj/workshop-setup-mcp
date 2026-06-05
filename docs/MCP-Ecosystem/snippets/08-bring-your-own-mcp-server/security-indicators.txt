@@ -1,5 +1,0 @@
-securityIndicators:
-  verifiedSource: true
-  secureEndpoint: true
-  sast: true
-  readOnlyTools: false   # true only if every tool has accessType: read_only

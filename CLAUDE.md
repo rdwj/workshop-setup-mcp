@@ -12,8 +12,6 @@ A hands-on workshop for deploying the MCP Ecosystem on Red Hat OpenShift AI. The
   - `demo/agent/` — Python/fipsagents AI agent with MCP tool integration
   - `demo/gateway/` — Go HTTP gateway (auth, file upload, routing)
   - `demo/ui/` — Go chat UI with streaming support
-- **Reference docs** (`docs/MCP-Ecosystem/`) — comprehensive MCP Ecosystem architecture guide
-
 The agent itself is minimal (`demo/agent/src/agent.py` is ~30 lines). Most complexity lives in the authentication flow, the workshop deployment stages, and the framework (vendored, do not edit).
 
 ## Build and Test Commands
