@@ -29,6 +29,8 @@ nav:
     - "5. Gateway Registration": 05-gateway-registration/README.md
     - "6. Identity & Auth": 06-identity-auth/README.md
     - "7. Agent Testing": 07-agent-test/README.md
+  - Reference:
+    - "Layered Authorization Model": mcp-layered-authorization.md
 
 markdown_extensions:
   - admonition
