@@ -187,3 +187,10 @@ oc get pods -n mcp-system | grep broker
 | mcp-system Namespace | -- | Home for the MCP Gateway |
 | Gateway (mcp-gateway) | mcp-system | Dedicated gateway for MCP traffic |
 | MCPGatewayExtension | mcp-system | Deploys the MCP broker on the mcps listener |
+
+> **Which service to use:** After creating the Gateway and MCPGatewayExtension,
+> you will see two services in `mcp-system`: the broker (`mcp-gateway`) and the
+> Istio gateway (`mcp-gateway-<gatewayclass-name>`, e.g.,
+> `mcp-gateway-data-science-gateway-class`). Always give MCP clients the Istio
+> gateway service URL — not the broker. The broker handles `tools/list` from
+> cache but `tools/call` only works through the Istio gateway's ext_proc routing.

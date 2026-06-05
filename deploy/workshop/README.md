@@ -74,6 +74,14 @@ intervention -- these are documented inline with step-by-step workarounds.
 These scenarios reflect actual production deployments and build operational
 knowledge.
 
+**Service Endpoint Selection:**
+- The MCP Gateway creates two services in `mcp-system`. Always give clients
+  the Istio gateway service (`mcp-gateway-<gatewayclass-name>`) — not the
+  broker service (`mcp-gateway`). The broker responds to `tools/list` from
+  its cache, but `tools/call` only works through the Istio gateway's
+  ext_proc routing. This applies to agents, the Playground ConfigMap, and
+  any MCP client connecting to the gateway.
+
 **Module 3 -- MCP Server Prerequisites:**
 - The lifecycle operator intentionally does not create security-sensitive
   resources (ServiceAccount, ClusterRoleBinding, ConfigMap) to prevent
@@ -104,8 +112,10 @@ knowledge.
   MCPServerRegistration name. Including the prefix causes double-prefixing.
 
 **Module 9 -- External Model (if attempted):**
-- The Gen AI Playground does not forward MCP auth tokens to the gateway.
-  Register MCP servers with their direct ClusterIP URL instead.
+- The `gen-ai-aa-mcp-servers` ConfigMap must use the Istio gateway service
+  URL, not the broker service URL. The Playground forwards auth tokens
+  correctly — earlier failures were caused by using the wrong service
+  endpoint (see "Service Endpoint Selection" above).
 
 Full details: [Deployment Findings](https://github.com/rdwj/workshop-setup/blob/main/docs/mcp-gateway-lessons-learned.md)
 

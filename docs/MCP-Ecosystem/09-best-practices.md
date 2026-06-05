@@ -27,6 +27,26 @@ The full authorization stack operates in layers (see section 5.1.5 for details):
 
 Layers 1 and 2 are hard enforcement (requests are rejected). Layers 3 and 4 are filtering (tools are hidden or restricted). The broker enforces the intersection: a misconfigured VirtualMCPServer that lists unauthorized tools will result in 403 errors when the LLM attempts to call them — degrading the user experience without providing any security benefit.
 
+##### **9.1.3 Connect clients to the Istio gateway service, not the broker**
+
+The MCP Gateway creates two services: the **broker** (`mcp-gateway`) and the **Istio gateway** (`mcp-gateway-<gatewayclass-name>`). Both listen on port 8080 and both respond to the MCP protocol, but only the Istio gateway routes `tools/call` through the ext_proc filter chain where authorization, wristband verification, and VirtualMCPServer selection take effect.
+
+The broker responds to `tools/list` from its aggregated cache, which can give the false impression that everything is working. However, `tools/call` requests sent directly to the broker bypass the ext_proc filter chain entirely — authorization headers are not processed, wristband tokens are not verified, and VirtualMCPServer routing does not take effect.
+
+Always configure MCP clients — agents, the `gen-ai-aa-mcp-servers` ConfigMap for Gen AI Studio, programmatic MCP clients — with the Istio gateway service URL:
+
+```
+http://mcp-gateway-<gatewayclass-name>.mcp-system.svc.cluster.local:8080/mcp
+```
+
+Not the broker URL:
+
+```
+http://mcp-gateway.mcp-system.svc.cluster.local:8080/mcp
+```
+
+This distinction is easy to miss because the broker service has the more intuitive name. On Red Hat OpenShift, the GatewayClass is typically named `data-science-gateway-class`, making the correct service `mcp-gateway-data-science-gateway-class`.
+
 ### **9.2 Gateway Topology: When to Use Gateway-per-Team**
 
 Section 7 describes two gateway topologies — shared gateway (policy-isolated) and gateway-per-team (namespace-isolated). Neither is inherently "correct"; the right choice depends on the organization's trust model, compliance requirements, and operational maturity.
