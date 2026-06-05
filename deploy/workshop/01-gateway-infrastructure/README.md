@@ -85,16 +85,16 @@ oc get kuadrant kuadrant -n kuadrant-system -o jsonpath='{.status.conditions}' |
 
 Look for the `Ready` condition with `status: "True"`.
 
-### Known Issue: Kuadrant MissingDependency Race Condition
+!!! important "Kuadrant MissingDependency Race Condition"
 
-At this point you may see the Kuadrant CR stuck with a `MissingDependency`
-condition. This happens when the Kuadrant operator starts reconciling before
-the RHCL CRDs are fully registered in the API server. This is a common
-pattern in multi-operator deployments where dependencies come up
-asynchronously. The restart forces a fresh reconciliation loop after the API
-server has fully registered all CRDs.
+    You may see the Kuadrant CR stuck with a `MissingDependency`
+    condition. This happens when the Kuadrant operator starts reconciling before
+    the RHCL CRDs are fully registered in the API server. This is normal
+    in multi-operator deployments where dependencies come up
+    asynchronously. Restarting the operator forces a fresh reconciliation
+    loop after the API server has fully registered all CRDs.
 
-**Workaround:** Restart the Kuadrant operator pod to force a re-check:
+Restart the Kuadrant operator pod to force a re-check:
 
 ```bash
 oc delete pod -n openshift-operators -l app.kubernetes.io/name=kuadrant-operator

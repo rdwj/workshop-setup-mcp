@@ -211,16 +211,14 @@ for c in json.load(sys.stdin):
 "
 ```
 
-### Known Issue: Authorization Header Forwarding
+!!! important "Authorization Header Forwarding"
 
-By default, the gateway forwards all request headers to backend MCP servers,
-including the Authorization header. The OpenShift MCP server interprets this
-as a Kubernetes API token, which fails because the Keycloak JWT is not valid
-for the K8s API. The AuthPolicy in this module includes a response header
-directive that strips the Authorization header before forwarding, ensuring the
-MCP server uses its ServiceAccount token instead.
-
-See: [deployment findings, item 7](https://github.com/rdwj/workshop-setup/blob/main/docs/mcp-gateway-lessons-learned.md)
+    By default, the gateway forwards all request headers to backend MCP
+    servers, including the `Authorization` header. The OpenShift MCP server
+    interprets this as a Kubernetes API token, which fails because the
+    Keycloak JWT is not valid for the K8s API. The AuthPolicy in this
+    module strips the `Authorization` header before forwarding, ensuring
+    the MCP server uses its ServiceAccount token instead.
 
 ## Step 10: Test Authenticated Access
 

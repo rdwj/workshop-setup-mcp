@@ -55,21 +55,21 @@ assigns a `prefix`. All tools from this server will be prefixed with
 oc apply -f mcpserverregistration.yaml
 ```
 
-### Known Issue: prefix is Immutable
+!!! important "`prefix` is Immutable"
 
-The `prefix` field cannot be changed after the MCPServerRegistration is
-created because it affects tool routing in the broker's configuration cache.
-If you need a different prefix, you must delete and recreate the resource.
-Plan your naming convention before applying -- common patterns include
-`<team>_` or `<server>_` prefixes.
+    The `prefix` field cannot be changed after the MCPServerRegistration is
+    created — it affects tool routing in the broker's configuration cache.
+    If you need a different prefix, delete and recreate the resource.
+    Plan your naming convention before applying. Common patterns include
+    `<team>_` or `<server>_` prefixes.
 
-### Known Issue: Broker Does Not Auto-Reload
+!!! important "Broker Does Not Auto-Reload"
 
-At this point, the broker pod does not automatically pick up the new
-registration. The MCPServerRegistration controller updates the gateway config
-Secret, but the broker does not watch for Secret changes.
+    The broker reads its configuration at startup and does not watch for
+    Secret changes. After registering a new server, you must restart the
+    broker for it to discover the new tools.
 
-**Workaround:** Restart the broker deployment:
+Restart the broker deployment:
 
 ```bash
 oc rollout restart deployment/mcp-gateway -n mcp-system
