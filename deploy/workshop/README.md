@@ -129,10 +129,14 @@ For instructor-led workshops, apply this before the session:
 # First pass: creates namespaces and operator subscriptions
 oc apply -k deploy/base --context="$CTX"
 
-# Wait for operator CRDs to become available
-# (RHOAI, NFD, and Authorino operators must finish installing)
+# Wait for operator CRDs to become available.
+# The first pass will fail on operand CRs (DataScienceCluster, etc.)
+# because the CRDs don't exist yet — this is expected.
+# Monitor progress with:
+oc get csv -A --context="$CTX" | grep -E 'Succeeded|Installing'
 
-# Second pass: creates operand CRs (DataScienceCluster, etc.)
+# Once all operators show "Succeeded", run the second pass:
+# (creates operand CRs that depend on the operator CRDs)
 oc apply -k deploy/base --context="$CTX"
 ```
 
