@@ -1,0 +1,20 @@
+# Agent ConfigMap patch — admin credentials.
+#
+# Routes the agent through the MCP Gateway with the mcp-gateway client
+# (member of mcp-admins group). This gives access to all 14 tools.
+#
+# Replace placeholders before applying:
+#   <MCP_GATEWAY_URL>  — e.g. http://mcp-gateway.mcp.apps.cluster-abc.abc.sandbox1234.opentlc.com
+#   <KEYCLOAK_URL>     — e.g. https://keycloak-keycloak.apps.cluster-abc.abc.sandbox1234.opentlc.com
+#   <CLIENT_SECRET>    — the mcp-gateway client secret from Keycloak
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-setup-mcp-agent-config
+  namespace: workshop-setup-mcp
+data:
+  mcp-server-url: "<MCP_GATEWAY_URL>/mcp"
+  keycloak-token-url: "<KEYCLOAK_URL>/realms/mcp-gateway/protocol/openid-connect/token"
+  keycloak-client-id: "mcp-gateway"
+  keycloak-client-secret: "<CLIENT_SECRET>"
+  keycloak-scope: "openid groups"

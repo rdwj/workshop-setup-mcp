@@ -1,0 +1,30 @@
+# Keycloak CR — the RHBK operator reconciles this into a running instance.
+#
+# Replace <CLUSTER_DOMAIN> with your cluster's apps domain, e.g.:
+#   apps.cluster-abc12.abc12.sandbox1234.opentlc.com
+#
+# The hostname.strict=false setting allows access via the Route without
+# requiring the exact hostname match that strict mode enforces.
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: keycloak
+  namespace: keycloak
+spec:
+  instances: 1
+  db:
+    vendor: postgres
+    host: postgresql-db-service.keycloak.svc.cluster.local
+    usernameSecret:
+      name: keycloak-db-secret
+      key: username
+    passwordSecret:
+      name: keycloak-db-secret
+      key: password
+  http:
+    httpEnabled: true
+  proxy:
+    headers: xforwarded
+  hostname:
+    strict: false
+    strictBackchannel: false
