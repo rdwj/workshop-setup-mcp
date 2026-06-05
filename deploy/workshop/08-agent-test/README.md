@@ -236,7 +236,7 @@ Now ask:
 > Show me the top nodes by CPU usage
 
 The agent will attempt to call `nodes_top`. With user credentials, the
-wristband's `allowed-capabilities` claim contains only the 8 user-level
+wristband's `allowed-tools` claim contains only the 8 user-level
 tools. If the gateway's wristband enforcement is active, the broker
 rejects the call. If it falls through to the backend, the
 ServiceAccount's Kubernetes RBAC blocks it (the `mcp-viewer` SA has

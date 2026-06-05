@@ -109,7 +109,7 @@ knowledge.
   silently.
 - The gateway forwards the `Authorization` header to backends, breaking
   ServiceAccount auth. The AuthPolicy must strip it.
-- Wristband `allowed-capabilities` must use unprefixed tool names keyed by
+- Wristband `allowed-tools` must use unprefixed tool names keyed by
   MCPServerRegistration name. Including the prefix causes double-prefixing.
 
 **Module 9 -- External Model (if attempted):**

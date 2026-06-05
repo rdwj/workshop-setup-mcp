@@ -1,6 +1,6 @@
 # AuthPolicy with wristband signing for per-group tool filtering.
 #
-# The wristband JWT contains an "allowed-capabilities" claim in the format:
+# The wristband JWT contains an "allowed-tools" claim in the format:
 #   {"<server-name>": ["tool1", "tool2", ...]}
 # where the server name matches the MCPServerRegistration name in the broker config,
 # and tool names are the UNPREFIXED canonical names from the backend MCP server.
@@ -89,15 +89,15 @@ spec:
       response:
         success:
           headers:
-            x-mcp-authorized:
+            x-authorized-tools:
               wristband:
-                issuer: http://authorino-authorino-oidc.kuadrant-system.svc.cluster.local:8083/mcp-system/mcp-gateway-auth/x-mcp-authorized
+                issuer: http://authorino-authorino-oidc.kuadrant-system.svc.cluster.local:8083/mcp-system/mcp-gateway-auth/x-authorized-tools
                 signingKeyRefs:
                   - name: wristband-signing-key
                     algorithm: ES256
                 tokenDuration: 300
                 customClaims:
-                  allowed-capabilities:
+                  allowed-tools:
                     selector: auth.authorization.tool-roles.allowed_tools
                   groups:
                     selector: auth.identity.groups

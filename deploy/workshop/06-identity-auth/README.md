@@ -7,7 +7,7 @@ tool-level authorization -- encoding per-group tool permissions.
 After this module, the gateway will:
 - Require a valid JWT from Keycloak on every request
 - Map Keycloak groups to tool permission sets via OPA Rego policy
-- Issue a short-lived wristband token containing an `allowed-capabilities` claim
+- Issue a short-lived wristband token containing an `allowed-tools` claim
 - Return 401 for unauthenticated requests
 
 **Time:** 30--45 minutes
@@ -160,7 +160,7 @@ silently -- you get fewer tools with no error message.
 The wristband mechanism works as follows:
 1. Authorino validates the Keycloak JWT
 2. OPA Rego determines the allowed tools based on the user's groups
-3. Authorino signs a short-lived wristband JWT containing `allowed-capabilities`
+3. Authorino signs a short-lived wristband JWT containing `allowed-tools`
 4. The broker reads the wristband and filters the tool list
 
 Generate an ECDSA P-256 key pair and create the secrets:
@@ -188,7 +188,7 @@ oc get mcpgatewayextension mcp-gateway -n mcp-system --context="$CTX" \
 The AuthPolicy configures:
 - JWT authentication against the Keycloak issuer
 - OPA Rego authorization mapping groups to tool lists
-- Wristband token issuance with the `allowed-capabilities` claim
+- Wristband token issuance with the `allowed-tools` claim
 - Authorization header stripping (see known issue below)
 
 Replace the Keycloak issuer URL and apply:
@@ -327,8 +327,8 @@ Keycloak (mcp-gateway realm)
 MCP Gateway (AuthPolicy)
   |
   |  1. Validate JWT (Authorino)
-  |  2. OPA Rego: groups -> allowed-capabilities
-  |  3. Sign wristband with allowed-capabilities claim
+  |  2. OPA Rego: groups -> allowed-tools
+  |  3. Sign wristband with allowed-tools claim
   |  4. Strip Authorization header
   |
   v
