@@ -1,9 +1,0 @@
-tools:
-  - name: list_resources
-    description: List platform resources
-    accessType: read_only      # read_only | read_write | execute
-    parameters:
-      - name: namespace
-        type: string
-        description: Target namespace
-        required: false
