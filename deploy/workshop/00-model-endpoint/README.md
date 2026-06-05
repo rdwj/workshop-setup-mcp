@@ -25,7 +25,16 @@ Verify it responds:
 ```bash
 curl -sk -H "Authorization: Bearer ${OPENAI_API_KEY}" \
   "${MODEL_ENDPOINT}/models" \
-  | python3 -c "import sys,json; [print(m['id']) for m in json.load(sys.stdin).get('data',[])]"
+  | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for m in data.get('data', []):
+        print(m['id'])
+except (json.JSONDecodeError, KeyError):
+    print('ERROR: endpoint did not return valid JSON. Check MODEL_ENDPOINT URL.', file=sys.stderr)
+    sys.exit(1)
+"
 ```
 
 If the endpoint does not require authentication, you can omit the
