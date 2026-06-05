@@ -1,0 +1,16 @@
+{
+  "generator": {
+    "tool": "fips-agents-cli",
+    "version": "0.15.3"
+  },
+  "template": {
+    "url": "https://github.com/fips-agents/gateway-template",
+    "type": "gateway",
+    "commit": "88dfc1778967",
+    "full_commit": "88dfc1778967804d431b3b4057c120826970ddb1"
+  },
+  "project": {
+    "name": "workshop-setup-mcp-gateway",
+    "created_at": "2026-06-04T12:45:09.278739+00:00"
+  }
+}

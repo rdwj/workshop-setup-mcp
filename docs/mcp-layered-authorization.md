@@ -27,7 +27,7 @@ The MCP Gateway enforces access control through a four-layer authorization stack
                │
                ▼
 ┌──────────────────────────────────┐
-│  Layer 4: VirtualMCPServer       │  ◄── Which curated tool subset
+│  Layer 4: MCPVirtualServer        │  ◄── Which curated tool subset
 │  (CEL group → tool view)         │      does this user see?
 └──────────────┬───────────────────┘
                │
@@ -37,11 +37,11 @@ The MCP Gateway enforces access control through a four-layer authorization stack
 
 ## Hard Enforcement vs Filtering
 
-Layers 1 and 2 are **hard enforcement** -- requests are rejected outright with HTTP 401 (invalid token) or 403 (unauthorized for this server). Layers 3 and 4 are **filtering** -- tools are either hidden from `tools/list` responses or rejected when called via `tools/call`. The broker enforces the intersection of layers 3 and 4: a VirtualMCPServer that lists tools the user isn't authorized for via the wristband will result in 403 errors when the LLM attempts to call them.
+Layers 1 and 2 are **hard enforcement** -- requests are rejected outright with HTTP 401 (invalid token) or 403 (unauthorized for this server). Layers 3 and 4 are **filtering** -- tools are either hidden from `tools/list` responses or rejected when called via `tools/call`. The broker enforces the intersection of layers 3 and 4: a MCPVirtualServer that lists tools the user isn't authorized for via the wristband will result in 403 errors when the LLM attempts to call them.
 
 ## Key Implication for Platform Engineers
 
-VirtualMCPServers control what users **see**, not what they can **call**. They are not an access control mechanism. Authorization enforcement must be handled via AuthPolicy (layers 1-3). A VirtualMCPServer can restrict a user's view to a subset of authorized tools, but it cannot grant access to tools the wristband denies. Any user or LLM agent that knows a tool name can attempt to call it directly, bypassing the VirtualMCPServer filter -- the wristband (layer 3) is the final enforcement point for tool execution.
+MCPVirtualServers control what users **see**, not what they can **call**. They are not an access control mechanism. Authorization enforcement must be handled via AuthPolicy (layers 1-3). A MCPVirtualServer can restrict a user's view to a subset of authorized tools, but it cannot grant access to tools the wristband denies. Any user or LLM agent that knows a tool name can attempt to call it directly, bypassing the MCPVirtualServer filter -- the wristband (layer 3) is the final enforcement point for tool execution.
 
 ## Further Reading
 

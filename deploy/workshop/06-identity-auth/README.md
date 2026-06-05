@@ -16,6 +16,12 @@ After this module, the gateway will:
 - Modules 1--5 complete (gateway infrastructure, MCP Gateway, MCP server prerequisites, MCP server, registration)
 - `openssl` available on your workstation
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/06-identity-auth
+> ```
+
 > **Note:** The RHBK operator may inherit Manual InstallPlan approval from
 > other operators on the cluster. If the CSV doesn't appear after 3 minutes,
 > check for pending InstallPlans and approve them (see Step 1).
@@ -205,16 +211,14 @@ for c in json.load(sys.stdin):
 "
 ```
 
-### Known Issue: Authorization Header Forwarding
+!!! important "Authorization Header Forwarding"
 
-By default, the gateway forwards all request headers to backend MCP servers,
-including the Authorization header. The OpenShift MCP server interprets this
-as a Kubernetes API token, which fails because the Keycloak JWT is not valid
-for the K8s API. The AuthPolicy in this module includes a response header
-directive that strips the Authorization header before forwarding, ensuring the
-MCP server uses its ServiceAccount token instead.
-
-See: [deployment findings, item 7](https://github.com/rdwj/workshop-setup/blob/main/docs/mcp-gateway-lessons-learned.md)
+    By default, the gateway forwards all request headers to backend MCP
+    servers, including the `Authorization` header. The OpenShift MCP server
+    interprets this as a Kubernetes API token, which fails because the
+    Keycloak JWT is not valid for the K8s API. The AuthPolicy in this
+    module strips the `Authorization` header before forwarding, ensuring
+    the MCP server uses its ServiceAccount token instead.
 
 ## Step 10: Test Authenticated Access
 
@@ -242,8 +246,6 @@ echo "Client secret: ${CLIENT_SECRET}"
 Request a token (note `scope=openid groups`):
 
 ```bash
-MCP_GATEWAY_URL="http://mcp-gateway.mcp.${CLUSTER_DOMAIN}"
-
 TOKEN=$(curl -sk -X POST \
   "${KEYCLOAK_URL}/realms/mcp-gateway/protocol/openid-connect/token" \
   -d "client_id=mcp-gateway" \
@@ -260,19 +262,24 @@ Verify the gateway responds to an authenticated `initialize` request:
 > which returns server capabilities.
 
 ```bash
-curl -s "${MCP_GATEWAY_URL}/mcp" \
+oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
+  curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
   | python3 -m json.tool
 ```
 
-**Expected:** A response with `serverInfo` and `capabilities` including `tools`.
+**Expected:** A response with `serverInfo` from "Kuadrant MCP Gateway" and `capabilities` including `tools`.
 
 Test unauthenticated access:
 
 ```bash
-curl -s -o /dev/null -w "HTTP %{http_code}\n" "${MCP_GATEWAY_URL}/mcp" \
+oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
+  curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+  http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 ```

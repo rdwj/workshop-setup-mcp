@@ -7,6 +7,20 @@ Kuadrant control plane in your cluster.
 **Prerequisites** -- RHOAI 3.4 installed with Authorino, cert-manager, and
 Service Mesh 3 already present on the cluster.
 
+> **Working directory:** All commands in this module reference files in the
+> module directory. Start by changing into it:
+>
+> ```bash
+> cd deploy/workshop/01-gateway-infrastructure
+> ```
+>
+> If you are working with multiple clusters, set your context once and
+> append `--context="$CTX"` to each `oc` command:
+>
+> ```bash
+> export CTX="<your-kube-context>"
+> ```
+
 ---
 
 ## Step 1: Install the RHCL Operator
@@ -39,8 +53,9 @@ This can take 2-3 minutes.
 > If you see any with `APPROVED=false`, approve them:
 >
 > ```bash
-> oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}' | \
->   xargs -I{} oc patch installplan {} -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+> for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+>   oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+> done
 > ```
 
 ## Step 2: Create the Kuadrant Namespace
@@ -70,16 +85,16 @@ oc get kuadrant kuadrant -n kuadrant-system -o jsonpath='{.status.conditions}' |
 
 Look for the `Ready` condition with `status: "True"`.
 
-### Known Issue: Kuadrant MissingDependency Race Condition
+!!! important "Kuadrant MissingDependency Race Condition"
 
-At this point you may see the Kuadrant CR stuck with a `MissingDependency`
-condition. This happens when the Kuadrant operator starts reconciling before
-the RHCL CRDs are fully registered in the API server. This is a common
-pattern in multi-operator deployments where dependencies come up
-asynchronously. The restart forces a fresh reconciliation loop after the API
-server has fully registered all CRDs.
+    You may see the Kuadrant CR stuck with a `MissingDependency`
+    condition. This happens when the Kuadrant operator starts reconciling before
+    the RHCL CRDs are fully registered in the API server. This is normal
+    in multi-operator deployments where dependencies come up
+    asynchronously. Restarting the operator forces a fresh reconciliation
+    loop after the API server has fully registered all CRDs.
 
-**Workaround:** Restart the Kuadrant operator pod to force a re-check:
+Restart the Kuadrant operator pod to force a re-check:
 
 ```bash
 oc delete pod -n openshift-operators -l app.kubernetes.io/name=kuadrant-operator

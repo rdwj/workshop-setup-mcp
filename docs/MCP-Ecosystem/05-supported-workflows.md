@@ -32,7 +32,7 @@ These are installed as part of the MCP ecosystem setup process:
 | MCP Gateway Operator | OLM (custom CatalogSource \+ Subscription) | Watches MCPGatewayExtension CRs; deploys and manages the MCP broker/router |
 | Red Hat Build of Keycloak (RHBK) | OLM (Subscription) | Manages Keycloak instances and realm imports for identity management |
 | MCP Lifecycle Operator | Manual YAML apply | Watches MCPServer CRs; creates downstream Deployments, Services, and health checks |
-| HashiCorp Vault | Helm chart (`hashicorp/vault`) \[official support status unclear\] | Provides dynamic secret storage for per-user credential injection |
+| HashiCorp Vault | Helm chart (`hashicorp/vault`) with `global.openshift: true`. Supported by HashiCorp for OpenShift; Red Hat certification covers the Vault Secrets Operator (VSO) only, not the server itself. | Provides dynamic secret storage for per-user credential injection |
 
 ##### **5.1.1.3 Post-Install Activation**
 
@@ -63,6 +63,8 @@ spec: {}
     -p '{"spec":{"dashboardConfig":{"mcpCatalog":true,"genAiStudio":true}}}'
 ```
 
+**Note:** The `genAiStudio` flag is documented in the RHOAI 3.4 dashboard configuration reference. The `mcpCatalog` flag exists in the ODH Dashboard source code but is not yet listed in the official RHOAI documentation and may change without notice.
+
 Detailed configuration of each component (Keycloak realms, Vault policies, Gateway resources, AuthPolicies) is covered in the sections that follow.
 
 #### 5.1.2 Setting Up the MCP Gateway Namespace
@@ -82,7 +84,8 @@ The `mcp-gateway` Helm chart creates two primary resources:
 
 Key configuration in the Helm values:
 
-* `controller.enabled: false` — the MCP Gateway operator runs cluster-wide (installed in 3.1.1); the chart should not deploy its own controller.  
+* `controller.enabled: false` — the MCP Gateway operator runs cluster-wide (installed in 3.1.1); the chart should not deploy its own controller.
+This is specific to the OLM installation path (section 5.1.1.2) where the operator runs cluster-wide. The upstream Helm chart defaults to `controller.enabled: true` because its primary installation path includes the controller in the chart.  
 * `publicHost` — the externally reachable hostname for this gateway. Must match the cluster's apps domain (e.g., `<gateway-name>.<cluster-apps-domain>`).  
 * `mcpGatewayExtension.gatewayRef` — references the Gateway by name, namespace, and listener section name.
 
@@ -102,6 +105,8 @@ The wristband requires an ECDSA key pair:
 * A **public key** secret is created in the gateway namespace. The broker uses this to verify the wristband signature.
 
 After creating the key secrets, the MCPGatewayExtension is patched to reference the public key secret via `spec.trustedHeadersKey`. This links the broker to the verification key.
+
+**Shortcut:** The MCPGatewayExtension CRD also supports `spec.trustedHeadersKey.generate: Enabled`, which causes the operator to automatically create both key secrets with owner references — eliminating the manual key generation steps above.
 
 ##### **5.1.2.5 Wait for broker readiness**
 
@@ -139,7 +144,7 @@ A **KeycloakRealmImport CR** creates the MCP realm with:
 * **Seed users** — initial users with passwords and realm role assignments for testing and validation.  
 * **Client scopes and protocol mappers** — a `roles` scope with mappers that include `realm_access.roles` and `resource_access.{client_id}.roles` in both access and ID tokens.
 
-An example KeycloakRealmImport CR:
+An example KeycloakRealmImport CR (`v2alpha1` is correct for Red Hat Build of Keycloak; upstream community Keycloak has promoted to `v2beta1`):
 
 > [snippets/05-supported-workflows/import-the-realm.yaml](snippets/05-supported-workflows/import-the-realm.yaml)
 
@@ -229,20 +234,32 @@ spec:
               userinfo.token.claim: "true"
 ```
 
+**Workshop note:** Both clients above have `directAccessGrantsEnabled: true`, which enables the Resource Owner Password Credentials (ROPC) grant used in the token acquisition examples (section 5.2.5). ROPC is deprecated per RFC 9700 (OAuth 2.0 Security Best Current Practice, March 2025) and disabled by default in Keycloak 26.2+. For production deployments, disable ROPC and use the authorization code flow with PKCE or the device authorization grant instead.
+
+**Security note:** The `redirectUris: ["*"]` configuration is a workshop convenience. Wildcard redirect URIs have been the root cause of multiple Keycloak CVEs (CVE-2023-6927, CVE-2024-8883, CVE-2026-7504) and are forbidden by RFC 9700. Production deployments must replace `["*"]` with explicit redirect URIs.
+
 ##### **5.1.3.4 Create groups for tool routing**
 
-Groups are one mechanism the gateway AuthPolicy can use to route users to the correct VirtualMCPServer. In this approach, each group maps to a tool subset — the gateway-level AuthPolicy reads the `groups` claim from the JWT and sets the `x-mcp-virtualserver` header accordingly, directing the broker to the right VirtualMCPServer for that user. Alternatively, routing can be based on realm roles (`realm_access.roles`) or other JWT claims, depending on how the organization models access. For details on how VirtualMCPServers filter tools via the `X-Mcp-Virtualserver` header, see the [MCP Gateway Virtual Servers guide](https://docs.kuadrant.io/latest/mcp-gateway/docs/guides/virtual-mcp-servers/). For the underlying Authorino mechanism of extracting JWT claims and using them in authorization decisions (the pattern behind reading groups and injecting routing headers), see the [Token normalization guide](https://docs.kuadrant.io/latest/authorino/docs/user-guides/token-normalization/). For configuring AuthPolicy CEL expressions that enforce tool-level authorization, see the [MCP Gateway Authorization guide](https://docs.kuadrant.io/latest/mcp-gateway/docs/guides/authorization/).
+Groups are one mechanism the gateway AuthPolicy can use to route users to the correct MCPVirtualServer. In this approach, each group maps to a tool subset — the gateway-level AuthPolicy reads the `groups` claim from the JWT and sets the `x-mcp-virtualserver` header accordingly, directing the broker to the right MCPVirtualServer for that user. Alternatively, routing can be based on realm roles (`realm_access.roles`) or other JWT claims, depending on how the organization models access. For details on how MCPVirtualServers filter tools via the `X-Mcp-Virtualserver` header, see the [MCP Gateway Virtual Servers guide](https://docs.kuadrant.io/latest/mcp-gateway/docs/guides/virtual-mcp-servers/). For the underlying Authorino mechanism of extracting JWT claims and using them in authorization decisions (the pattern behind reading groups and injecting routing headers), see the [Token normalization guide](https://docs.kuadrant.io/latest/authorino/docs/user-guides/token-normalization/). For configuring AuthPolicy CEL expressions that enforce tool-level authorization, see the [MCP Gateway Authorization guide](https://docs.kuadrant.io/latest/mcp-gateway/docs/guides/authorization/).
 
 How groups are provisioned depends on the identity source:
 
 * **Standalone Keycloak:** Groups are created via the Keycloak Admin API after the realm import. Each group is assigned the appropriate users. A **groups protocol mapper** is added to the public client so the `groups` claim appears in issued tokens.  
 * **Federated from OpenShift:** OpenShift groups are synchronized into Keycloak through the identity broker. The OpenShift group names must align with what the gateway AuthPolicy expects in the JWT `groups` claim. Verify that the federation mapping passes group memberships through to tokens — this may require configuring a group mapper on the identity provider in Keycloak.
 
-In either case, the group structure should mirror the VirtualMCPServer resources that will be created in section 5.1.5. For example, if there are three VirtualMCPServers representing different tool subsets (admin tools, specialized tools, basic tools), there should be three corresponding groups.
+In either case, the group structure should mirror the MCPVirtualServer resources that will be created in section 5.1.5. For example, if there are three MCPVirtualServers representing different tool subsets (admin tools, specialized tools, basic tools), there should be three corresponding groups.
+
+**Required setup:** The `groups` claim is not included in Keycloak tokens by default. To make it available:
+
+1. Create a custom client scope named `groups` in the MCP realm.
+2. Add an `oidc-group-membership-mapper` protocol mapper to this scope, configured with `claim.name: "groups"`, `full.path: "false"`, and token claim flags enabled (`access.token.claim`, `id.token.claim`, `userinfo.token.claim` all set to `"true"`).
+3. Assign this scope to the public client (`mcp-playground`). If assigned as a **Default** scope, the `groups` claim is included automatically in all tokens. If assigned as an **Optional** scope, clients must explicitly request `scope=openid groups` (as shown in section 5.2.5.1).
+
+Without this setup, JWTs will not carry the `groups` claim, and MCPVirtualServer routing based on group membership will fail silently — users will see an empty tool list with no error.
 
 #### 5.1.4 Configuring Gateway-Level Authentication (AuthPolicy)
 
-The gateway-level AuthPolicy targets the Gateway CR's MCP listener section and applies to every request that enters the gateway. In this configuration, the policy addresses three concerns: JWT authentication, wristband signing, and VirtualMCPServer routing.
+The gateway-level AuthPolicy targets the Gateway CR's MCP listener section and applies to every request that enters the gateway. In this configuration, the policy addresses three concerns: JWT authentication, wristband signing, and MCPVirtualServer routing.
 
 ##### **5.1.4.1 JWT authentication**
 
@@ -274,13 +291,15 @@ The `sectionName` must be `mcp` — the external-facing listener where client re
 
 The gateway-level AuthPolicy includes an OPA Rego authorization block that extracts per-server tool roles from the JWT's `resource_access` claim. Each MCP server registered with Keycloak as a client can define client roles representing individual tools. The Rego policy builds a map of `{server: [tools]}` from these claims.
 
-This map is then signed into a **wristband** — a short-lived ES256 JWT placed in the `x-authorized-tools` header. The wristband is signed with the private key created during gateway setup (section 5.1.2) and verified by the broker using the corresponding public key. The broker uses this to filter `tools/list` and `tools/call` to only the tools the caller is authorized to use.
+This map is then signed into a **wristband** — a short-lived ES256 JWT placed in the `x-mcp-authorized` header. The wristband is signed with the private key created during gateway setup (section 5.1.2) and verified by the broker using the corresponding public key. The broker uses this to filter `tools/list` and `tools/call` to only the tools the caller is authorized to use.
 
 The wristband provides fine-grained, per-tool authorization without requiring the broker to re-evaluate the full AuthPolicy on every request.
 
-##### **5.1.4.3 VirtualMCPServer routing**
+**Note:** The wristband carries an `allowed-capabilities` claim containing a JSON-encoded map of authorized tools per server (e.g., `{"tools":{"server-route":["tool1","tool2"]}}`). The upstream MCP Gateway examples use Authorino's native `wristband` response type with CEL selectors rather than OPA Rego to assemble this claim. Either approach works as long as the claim name and structure match what the broker expects.
 
-The same AuthPolicy sets the `x-mcp-virtualserver` response header using a CEL expression that reads the `groups` claim from the authenticated JWT. The expression evaluates the user's group membership and maps it to the name of the appropriate VirtualMCPServer resource. The broker uses this header to determine which tool subset to present in `tools/list`.
+##### **5.1.4.3 MCPVirtualServer routing**
+
+The same AuthPolicy sets the `x-mcp-virtualserver` response header using a CEL expression that reads the `groups` claim from the authenticated JWT. The expression evaluates the user's group membership and maps it to the name of the appropriate MCPVirtualServer resource. The broker uses this header to determine which tool subset to present in `tools/list`.
 
 This requires that tokens are requested with `scope=openid groups` so that the JWT carries the `groups` claim. Without this scope, the CEL expression will not find any group memberships and routing will fail silently — users will see an empty tool list with no error.
 
@@ -302,7 +321,7 @@ spec:
                   : '<namespace>/dev-tools'
 ```
 
-The CEL ternary evaluates group membership in priority order and resolves to the namespaced name of the appropriate VirtualMCPServer. Users not matching any group receive an empty value.
+The CEL ternary evaluates group membership in priority order and resolves to the namespaced name of the appropriate MCPVirtualServer. Users not matching any group receive an empty value.
 
 This is a coarse-grained, group-level tool curation layer. It controls which tools *appear* in discovery. The wristband layer (above) controls which tools can actually be *called*. Both layers work together — the broker returns the intersection.
 
@@ -312,7 +331,7 @@ Beyond the gateway-level AuthPolicy, individual MCP servers can have their own A
 
 ##### **5.1.5.1 Per-server access restriction**
 
-A per-server AuthPolicy targets an HTTPRoute (rather than the Gateway) and can restrict which users or groups are allowed to reach that specific MCP server. For example, an AuthPolicy on the OpenShift MCP server's HTTPRoute can require that the caller belong to an admins group — even if the gateway-level policy already authenticated the user and the VirtualMCPServer includes OpenShift tools.
+A per-server AuthPolicy targets an HTTPRoute (rather than the Gateway) and can restrict which users or groups are allowed to reach that specific MCP server. For example, an AuthPolicy on the OpenShift MCP server's HTTPRoute can require that the caller belong to an admins group — even if the gateway-level policy already authenticated the user and the MCPVirtualServer includes OpenShift tools.
 
 The authorization block uses `patternMatching` with a selector on `auth.identity.groups` to check group membership. This acts as a hard access control: if the user's JWT doesn't contain the required group, the request is rejected with a 403 at the HTTPRoute level, before it reaches the MCP server.
 
@@ -362,9 +381,9 @@ The full authorization stack operates in layers:
 1. **Gateway-level JWT validation** — is the token valid? (401 if not)  
 2. **Per-server patternMatching** — is this user allowed to reach this server? (403 if not)  
 3. **Wristband tool filtering** — which specific tools can this user call? (broker filters `tools/list` and rejects unauthorized `tools/call`)  
-4. **VirtualMCPServer routing** — which curated tool subset does this user see? (broker selects the tool view)
+4. **MCPVirtualServer routing** — which curated tool subset does this user see? (broker selects the tool view)
 
-Layers 1 and 2 are hard enforcement (requests are rejected). Layers 3 and 4 are filtering (tools are hidden or restricted). A misconfigured VirtualMCPServer cannot grant access to tools the user is not authorized for via the wristband — the broker enforces the intersection.
+Layers 1 and 2 are hard enforcement (requests are rejected). Layers 3 and 4 are filtering (tools are hidden or restricted). A misconfigured MCPVirtualServer cannot grant access to tools the user is not authorized for via the wristband — the broker enforces the intersection.
 
 #### 5.1.6 Setting Up Vault for Credential Injection (Optional)
 
@@ -395,6 +414,8 @@ Vault must be configured to trust JWTs issued by Keycloak. This involves creatin
 ##### **5.1.6.4 Create a secrets policy**
 
 A Vault policy restricts which paths each authenticated user can read. Using Vault's templated policies, the policy grants read access only to paths scoped by the caller's username — for example, `secret/data/mcp-gateway/users/{{identity.entity.aliases.<mount>.metadata.preferred_username}}/*`. This ensures that even if a user authenticates to Vault successfully, they can only read their own credentials.
+
+**Important:** The `<mount>` placeholder in the policy template must be the Vault **mount accessor** (e.g., `auth_jwt_abc123`), not the mount path (e.g., `jwt`). Obtain the accessor with `vault auth list`. Using the mount path instead of the accessor causes the template to silently fail to resolve, resulting in denied access.
 
 ##### **5.1.6.5 Store per-user credentials**
 
@@ -462,7 +483,7 @@ If the user does not have a credential stored at the expected Vault path, the me
 
 The Vault infrastructure (secrets engine, JWT auth, policy) is configured once. Each MCP server that needs credential injection gets its own per-server AuthPolicy with the appropriate Vault path. The pattern supports any credential type as long as it is stored in Vault under the user's path.
 
-#### 5.1.7 Wiring OGX and Gen AI Studio to the Gateway
+#### 5.1.7 Wiring Llama Stack/OGX and Gen AI Studio to the Gateway
 
 This section covers connecting the AI stack to the MCP Gateway so that AI engineers can discover and invoke tools through the Gen AI Studio Playground.
 
@@ -506,7 +527,7 @@ The Playground is created through the Gen AI Studio UI in the RHOAI Dashboard. D
 2. Selects the vLLM model endpoint to use for inference.  
 3. Adds the MCP Gateway as a tool source — selecting the gateway entry registered via the ConfigMap.
 
-When the Playground is created, the Dashboard creates an **OGX distribution** CR in the selected namespace. The OGX operator reconciles this into the necessary pods and configuration, wiring together the vLLM model endpoint and the MCP Gateway URL. OGX acts as the orchestration layer — it receives chat messages from the Playground UI, decides when to invoke tools, routes tool calls through the gateway, and assembles the final response.
+When the Playground is created, the Dashboard creates a **Llama Stack (upstream now OGX) distribution** CR in the selected namespace. The OGX operator reconciles this into the necessary pods and configuration, wiring together the vLLM model endpoint and the MCP Gateway URL. Llama Stack/OGX acts as the orchestration layer — it receives chat messages from the Playground UI, decides when to invoke tools, routes tool calls through the gateway, and assembles the final response.
 
 Once the Playground is running, AI engineers can authenticate with the gateway and begin using MCP tools. The consumption workflow — obtaining tokens, enabling tools, and interacting through the chat interface — is covered in section 5.2.5.
 
@@ -614,6 +635,8 @@ spec:
       serviceAccountName: openshift-mcp-server
 ```
 
+**Note:** The `openshift-mcp-beta/` image path is a pre-GA registry location. Check the [OpenShift MCP Server repository](https://github.com/openshift/openshift-mcp-server) for the current image reference, as the path and tag may change across releases.
+
 Key fields:
 
 * `source.containerImage.ref` — the OCI image for the MCP server.  
@@ -696,7 +719,7 @@ kind: MCPServerRegistration
 metadata:
   name: openshift-mcp-server
 spec:
-  toolPrefix: openshift_
+  prefix: openshift_
   targetRef:
     group: gateway.networking.k8s.io
     kind: HTTPRoute
@@ -705,7 +728,7 @@ spec:
 
 Key fields:
 
-* `toolPrefix` — a string prepended to all tool names from this server. This disambiguates tools when multiple servers expose tools with the same name (e.g., two servers both exposing a `list` tool become `openshift_list` and `github_list`).  
+* `prefix` — a string prepended to all tool names from this server. This disambiguates tools when multiple servers expose tools with the same name (e.g., two servers both exposing a `list` tool become `openshift_list` and `github_list`).  
 * `targetRef` — references the HTTPRoute created above. The broker resolves this to the server's backend address.
 
 ##### **5.2.3.3 Servers that require credentials for tool discovery**
@@ -716,7 +739,7 @@ Some MCP servers require authentication even for `tools/list` — for example, t
 
 ```
 spec:
-  toolPrefix: github_
+  prefix: github_
   targetRef:
     group: gateway.networking.k8s.io
     kind: HTTPRoute
@@ -734,11 +757,11 @@ Once both resources are applied, the MCP Gateway controller updates the broker's
 
 #### 5.2.4 Creating and Using Virtual MCP Servers
 
-VirtualMCPServers control which tools are visible to users when they call `tools/list` through the gateway. Without VirtualMCPServers, the broker returns every tool from every registered server — which can overwhelm LLMs, increase token consumption, and degrade tool-selection accuracy. VirtualMCPServers let platform or AI engineers define narrow, purpose-specific tool subsets.
+MCPVirtualServers control which tools are visible to users when they call `tools/list` through the gateway. Without MCPVirtualServers, the broker returns every tool from every registered server — which can overwhelm LLMs, increase token consumption, and degrade tool-selection accuracy. MCPVirtualServers let platform or AI engineers define narrow, purpose-specific tool subsets.
 
-##### **5.2.4.1 Creating a VirtualMCPServer**
+##### **5.2.4.1 Creating an MCPVirtualServer**
 
-A VirtualMCPServer lists the specific tools (by their prefixed names) that should be visible:
+An MCPVirtualServer lists the specific tools (by their prefixed names) that should be visible:
 
 > [snippets/05-supported-workflows/creating-a-virtualmcpserver.yaml](snippets/05-supported-workflows/creating-a-virtualmcpserver.yaml)
 
@@ -761,9 +784,9 @@ spec:
 
 Tool names must use the prefixed form as configured in the MCPServerRegistration (section 5.2.3) — for example, `openshift_pods_list` rather than `pods_list`. The `description` field is optional but useful for documenting the purpose of the tool subset.
 
-##### **5.2.4.2 How VirtualMCPServer selection works**
+##### **5.2.4.2 How MCPVirtualServer selection works**
 
-The VirtualMCPServer is selected via the `X-Mcp-Virtualserver` header. This header must use the **namespaced format**: `<namespace>/<name>` (e.g., `team-a/admin-tools`). In the automated flow, the gateway-level AuthPolicy injects this header based on JWT group claims — users never set it manually.
+The MCPVirtualServer is selected via the `X-Mcp-Virtualserver` header. This header must use the **namespaced format**: `<namespace>/<name>` (e.g., `team-a/admin-tools`). In the automated flow, the gateway-level AuthPolicy injects this header based on JWT group claims — users never set it manually.
 
 For testing or programmatic use, the header can be set explicitly on MCP requests:
 
@@ -773,11 +796,11 @@ For testing or programmatic use, the header can be set explicitly on MCP request
 X-Mcp-Virtualserver: team-a/admin-tools
 ```
 
-##### **5.2.4.3 VirtualMCPServers are subtractive only**
+##### **5.2.4.3 MCPVirtualServers are subtractive only**
 
-A VirtualMCPServer can only filter the set of tools already available through registered MCPServerRegistrations. It cannot add tools that don't exist or grant access to tools the user's AuthPolicy does not permit.
+An MCPVirtualServer can only filter the set of tools already available through registered MCPServerRegistrations. It cannot add tools that don't exist or grant access to tools the user's AuthPolicy does not permit.
 
-VirtualMCPServers control tool **visibility**, not tool **access** — see section 9.1 for guidance on pairing them with AuthPolicies for enforcement.
+MCPVirtualServers control tool **visibility**, not tool **access** — see section 9.1 for guidance on pairing them with AuthPolicies for enforcement.
 
 #### 5.2.5 Consuming MCP Capabilities in Gen AI Studio / Playground
 
@@ -798,7 +821,7 @@ TOKEN=$(curl -s -X POST \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 ```
 
-The `scope=openid groups` parameter is required so the JWT includes the `groups` claim, which the gateway uses for VirtualMCPServer routing and group-based authorization. Without it, the user may authenticate successfully but see no tools or receive 403 errors.
+The `scope=openid groups` parameter is required so the JWT includes the `groups` claim, which the gateway uses for MCPVirtualServer routing and group-based authorization. Without it, the user may authenticate successfully but see no tools or receive 403 errors.
 
 * **Browser-based OIDC flow** — in production environments, this would be replaced by an integrated SSO flow where the Dashboard authenticates the user and injects the token automatically.  
 * **Device authorization grant** — for headless or CLI-based workflows where a browser is not available.
@@ -815,9 +838,9 @@ On successful authorization, the Playground confirms the connection and reports 
 
 ##### **5.2.5.2 Enabling tool use in the Playground**
 
-After authorizing, enable the MCP Gateway checkbox in the tool sources panel. This tells OGX to include tools from the gateway when processing chat messages. When enabled, OGX calls `tools/list` through the gateway (authenticated with the provided token) and makes the returned tools available to the model.
+After authorizing, enable the MCP Gateway checkbox in the tool sources panel. This tells Llama Stack/OGX to include tools from the gateway when processing chat messages. When enabled, OGX calls `tools/list` through the gateway (authenticated with the provided token) and makes the returned tools available to the model.
 
-The tools visible to the user are determined by the intersection of their VirtualMCPServer assignment and the wristband-based authorization configured in the gateway AuthPolicy. Both filter the `tools/list` response — the VirtualMCPServer defines which tools are included in the view, and the wristband determines which of those the user is authorized to see. Both are derived from the user's identity in the JWT (sections 5.1.4 and 5.2.4).
+The tools visible to the user are determined by the intersection of their MCPVirtualServer assignment and the wristband-based authorization configured in the gateway AuthPolicy. Both filter the `tools/list` response — the MCPVirtualServer defines which tools are included in the view, and the wristband determines which of those the user is authorized to see. Both are derived from the user's identity in the JWT (sections 5.1.4 and 5.2.4).
 
 The tool selection dialog lists each tool by name and description, allowing users to fine-tune which tools the model can invoke. This is useful when a user has access to many tools but wants to focus the model on a specific task.
 
@@ -825,7 +848,7 @@ The tool selection dialog lists each tool by name and description, allowing user
 
 ##### **5.2.5.3 Interacting with tools**
 
-With the gateway enabled, the user can type natural language messages in the chat box. The model decides when to invoke tools based on the user's message and the available tool descriptions. Tool calls are routed through OGX to the gateway, which handles authentication, authorization, credential injection, and routing to the appropriate MCP server — all transparently.
+With the gateway enabled, the user can type natural language messages in the chat box. The model decides when to invoke tools based on the user's message and the available tool descriptions. Tool calls are routed through Llama Stack/OGX to the gateway, which handles authentication, authorization, credential injection, and routing to the appropriate MCP server — all transparently.
 
 Tool results are returned to the model, which incorporates them into its response. The user sees the final assembled response in the chat interface, with structured tool output rendered inline.
 
@@ -833,7 +856,7 @@ Tool results are returned to the model, which incorporates them into its respons
 
 #### 5.2.6 Bringing Your Own MCP Server
 
-To make a custom MCP server discoverable in the MCP Catalog, create an `mcp-catalog-sources` ConfigMap in the `odh-model-registries` namespace. This ConfigMap has two parts: a `sources.yaml` key that defines the catalog index, and a second key containing the actual server definitions.
+To make a custom MCP server discoverable in the MCP Catalog, create an `mcp-catalog-sources` ConfigMap in the `rhoai-model-registries` namespace. This ConfigMap has two parts: a `sources.yaml` key that defines the catalog index, and a second key containing the actual server definitions.
 
 ##### **5.2.6.1 ConfigMap structure**
 
@@ -849,7 +872,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mcp-catalog-sources
-  namespace: odh-model-registries
+  namespace: rhoai-model-registries
 data:
   sources.yaml: |
     mcp_catalogs:
@@ -894,6 +917,8 @@ data:
             - 0.0.0.0:8080
 ```
 
+**Note:** The namespace is `rhoai-model-registries` for RHOAI deployments. Open Data Hub (ODH) deployments use `odh-model-registries` instead.
+
 ##### **5.2.6.2 Server entry fields**
 
 Each server entry in the catalog data key must include:
@@ -917,8 +942,8 @@ After applying the ConfigMap, restart the `model-catalog` deployment to ensure t
 
 ```
 oc apply -f mcp-catalog-sources.yaml
-oc rollout restart deployment model-catalog -n odh-model-registries
-oc rollout status deployment model-catalog -n odh-model-registries --timeout=60s
+oc rollout restart deployment model-catalog -n rhoai-model-registries
+oc rollout status deployment model-catalog -n rhoai-model-registries --timeout=60s
 ```
 
 Once the rollout completes, open the MCP Catalog in the RHOAI Dashboard. The custom servers appear under their own label (e.g., "Custom MCP servers") alongside the built-in catalog entries. Clicking into a server shows its metadata, tools, and the **Deploy MCP server** button — following the same deployment workflow as built-in servers (section 5.2.2).
@@ -930,7 +955,7 @@ To verify programmatically, query the Catalog API:
 > [snippets/05-supported-workflows/applying-and-verifying-2.sh](snippets/05-supported-workflows/applying-and-verifying-2.sh)
 
 ```
-TOKEN=$(oc create token model-catalog -n odh-model-registries)
+TOKEN=$(oc create token model-catalog -n rhoai-model-registries)
 curl -sk -H "Authorization: Bearer $TOKEN" \
   "https://<model-catalog-route>/api/mcp_catalog/v1alpha1/mcp_servers"
 ```

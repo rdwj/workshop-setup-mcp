@@ -48,8 +48,8 @@ controls which tools each identity can see and invoke.
 
 ## Duration
 
-Core modules (1--7): 2--3 hours
-Optional modules (8--9): 1 hour each
+Core modules (1--8): 2.5--3.5 hours
+Optional modules (9--10): 1 hour each
 
 ## Modules
 
@@ -62,9 +62,10 @@ Optional modules (8--9): 1 hour each
 | 4 | `04-mcp-server/` | Deploy the OpenShift MCP server from the catalog | 10 min |
 | 5 | `05-gateway-registration/` | Register the MCP server with the gateway via MCPServerRegistration and HTTPRoute | 15 min |
 | 6 | `06-identity-auth/` | Install Keycloak, configure realm/groups, generate wristband keys, apply AuthPolicy | 30--45 min |
-| 7 | `07-agent-test/` | Reconfigure the pre-deployed agent to use the gateway, test admin vs user tool access | 15--20 min |
-| 8 (optional) | `08-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
-| 9 (optional) | `09-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
+| 7 | `07-deploy-agent/` | Build and deploy the agent, gateway proxy, and chat UI | 15--20 min |
+| 8 | `08-agent-test/` | Reconfigure the agent to use the gateway, test admin vs user tool access | 15--20 min |
+| 9 (optional) | `09-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
+| 10 (optional) | `10-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
 
 ## Real-World Deployment Patterns
 
@@ -99,7 +100,7 @@ knowledge.
   MCPGatewayExtension.
 - The broker does not auto-reload when the config Secret changes. Restart
   the broker pod after registering servers.
-- `toolPrefix` on MCPServerRegistration is immutable once set. Delete and
+- `prefix` on MCPServerRegistration is immutable once set. Delete and
   recreate if you need to change it.
 
 **Module 6 -- Identity/Auth:**
@@ -121,16 +122,28 @@ Full details: [Deployment Findings](https://github.com/rdwj/workshop-setup/blob/
 
 ## Cluster Automation
 
-The `ansible/` directory contains playbooks that automate the full stack
-deployment. For instructor-led workshops, run these before the session:
+The `deploy/base/` directory contains a Kustomize overlay that installs
+platform prerequisites (RHOAI, NFD, GPU operator, Authorino, Web Terminal).
+For instructor-led workshops, apply this before the session:
 
 ```bash
-cd ansible
-ansible-playbook gateway-infrastructure.yml -i inventory/<your-inventory>.yml
-ansible-playbook mcp-setup.yml -i inventory/<your-inventory>.yml
-ansible-playbook ecosystem-setup.yml -i inventory/<your-inventory>.yml
+# First pass: creates namespaces and operator subscriptions
+oc apply -k deploy/base --context="$CTX"
+
+# Wait for operator CRDs to become available.
+# The first pass will fail on operand CRs (DataScienceCluster, etc.)
+# because the CRDs don't exist yet — this is expected.
+# Monitor progress with:
+oc get csv -A --context="$CTX" | grep -E 'Succeeded|Installing'
+
+# Once all operators show "Succeeded", run the second pass:
+# (creates operand CRs that depend on the operator CRDs)
+oc apply -k deploy/base --context="$CTX"
 ```
 
+For repeatable multi-cluster provisioning, point an ArgoCD Application at
+`deploy/base/` (or a site-specific overlay under `deploy/overlays/`).
+
 The workshop modules are designed to be followed manually so students
-understand each component. The ansible playbooks are for repeatable
+understand each component. The Kustomize base and ArgoCD are for repeatable
 provisioning, not for the workshop itself.

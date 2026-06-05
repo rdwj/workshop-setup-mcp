@@ -6,6 +6,12 @@ will have a working MCP Gateway ready to accept server registrations.
 
 **Prerequisites** -- Module 1 completed. A GatewayClass exists in the cluster.
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/02-mcp-gateway
+> ```
+
 ---
 
 ## Step 1: Install the MCP Gateway Operator
@@ -35,8 +41,9 @@ This installs `mcp-gateway.v0.6.0`. It can take 2-3 minutes.
 > If you see any with `APPROVED=false`, approve them:
 >
 > ```bash
-> oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}' | \
->   xargs -I{} oc patch installplan {} -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+> for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+>   oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+> done
 > ```
 
 ## Step 2: Install the MCP Lifecycle Operator
@@ -55,13 +62,13 @@ Wait for the deployment to become available:
 oc get deployment -n mcp-lifecycle-operator-system
 ```
 
-### Known Issue: Lifecycle Operator OOMKilled at 128Mi
+!!! important "Lifecycle Operator Memory Limits"
 
-At this point you may see the lifecycle operator pod getting `OOMKilled`. The
-lifecycle operator ships with conservative resource limits (128Mi memory). For
-clusters with multiple MCPServer CRs, you may need to increase this.
+    The lifecycle operator ships with a 128Mi memory limit. It may get
+    `OOMKilled` on clusters with multiple MCPServer CRs. If the pod
+    restarts repeatedly, increase the limit.
 
-**Workaround:** Patch the deployment to 512Mi:
+Patch the deployment to 512Mi:
 
 ```bash
 oc patch deployment -n mcp-lifecycle-operator-system \
@@ -126,17 +133,15 @@ The MCPGatewayExtension deploys the MCP broker and attaches it to the Gateway's
 oc apply -f mcp-gateway-extension.yaml
 ```
 
-### Known Issue: Broker Service Name Mismatch
+!!! important "Broker Service Name on OpenShift"
 
-The MCP broker resolves the Istio gateway service by appending `-istio` to the
-Gateway name. When the GatewayClass is not named `istio` (e.g., it is
-`data-science-gateway-class`), the service lookup fails and `tools/call`
-returns DNS errors. The broker's default assumption is that the GatewayClass is
-named `istio`, which is true in many vanilla Istio deployments. Red Hat
-OpenShift uses a different naming convention. Setting `privateHost` explicitly
-decouples the broker from this naming assumption.
+    The MCP broker resolves the Istio gateway service by appending `-istio` to
+    the Gateway name. On OpenShift, the GatewayClass is named
+    `data-science-gateway-class` (not `istio`), so the service lookup fails
+    and `tools/call` returns DNS errors. Setting `privateHost` explicitly
+    tells the broker where to find the Istio gateway service.
 
-**Workaround:** After the MCPGatewayExtension is created, patch it to set the
+After the MCPGatewayExtension is created, patch it to set the
 correct `privateHost`:
 
 First, find the actual Istio gateway service name:
@@ -150,7 +155,7 @@ it as the privateHost:
 
 ```bash
 oc patch mcpgatewayextension mcp-gateway -n mcp-system --type=merge -p '
-  {"spec": {"privateHost": "mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local"}}'
+  {"spec": {"privateHost": "mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080"}}'
 ```
 
 ## Step 7: Verify the Gateway
@@ -170,11 +175,14 @@ Also verify the MCPGatewayExtension is Ready:
 oc get mcpgatewayextension mcp-gateway -n mcp-system -o jsonpath='{.status.conditions}' | python3 -m json.tool
 ```
 
-Finally, verify the broker pod is running:
+Finally, verify the pods are running:
 
 ```bash
-oc get pods -n mcp-system | grep broker
+oc get pods -n mcp-system
 ```
+
+You should see two pods: the broker (`mcp-gateway-*`) and the Istio
+gateway (`mcp-gateway-data-science-gateway-class-*`).
 
 ---
 

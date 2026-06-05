@@ -28,8 +28,10 @@ nav:
     - "4. Deploy MCP Server": 04-mcp-server/README.md
     - "5. Gateway Registration": 05-gateway-registration/README.md
     - "6. Identity & Auth": 06-identity-auth/README.md
-    - "7. Agent Testing": 07-agent-test/README.md
+    - "7. Deploy Agent": 07-deploy-agent/README.md
+    - "8. Agent Testing": 08-agent-test/README.md
   - Reference:
+    - "Troubleshooting": troubleshooting.md
     - "Layered Authorization Model": mcp-layered-authorization.md
 
 markdown_extensions:

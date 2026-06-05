@@ -1,18 +1,23 @@
-# Module 7: Agent Testing Through the Gateway
+# Module 8: Agent Testing Through the Gateway
 
 Connect a live agent to the MCP Gateway and observe how identity-based tool
 filtering changes what the agent can do.
 
-This module uses the pre-deployed agent, gateway proxy, and chat UI in the
-`workshop-setup-mcp` namespace. You will reconfigure the agent to route
-tool calls through the authenticated MCP Gateway and see the difference
-between admin and user-level access.
+You will reconfigure the agent deployed in Module 7 to route tool calls
+through the authenticated MCP Gateway and see the difference between admin
+and user-level access.
 
 **Time:** 15--20 minutes
 
 **Prerequisites:**
+- Module 7 complete (agent, gateway proxy, and chat UI deployed)
 - Module 6 complete (Keycloak + AuthPolicy deployed)
-- Agent, gateway proxy, and chat UI running in `workshop-setup-mcp` namespace
+
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/08-agent-test
+> ```
 
 ## Variables
 
@@ -91,27 +96,35 @@ CLIENT_SECRET=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
 echo "Client secret: ${CLIENT_SECRET}"
 ```
 
-Update `agent-config-admin.yaml` with your values, then apply:
+The agent was deployed in Module 7 with admin credentials (`mcp-gateway`
+client, member of `mcp-admins`). If you followed Module 7, the agent is
+already configured for admin access and you can skip to Step 4.
 
-We use the internal service URL because the agent runs inside the cluster:
+If you need to reconfigure the agent for admin access (e.g., after
+switching to user credentials in Step 6), re-run the Module 7 helm
+install with the admin client secret:
 
 ```bash
 MCP_GATEWAY_URL="http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp"
+NS="workshop-setup-mcp"
 
-sed -e "s|<MCP_GATEWAY_URL>|${MCP_GATEWAY_URL}|g" \
-    -e "s|<KEYCLOAK_URL>|${KEYCLOAK_URL}|g" \
-    -e "s|<CLIENT_SECRET>|${CLIENT_SECRET}|g" \
-    agent-config-admin.yaml \
-  | oc apply --context="$CTX" -f -
-```
+AGENT_IMAGE=$(oc get is workshop-setup-mcp -n "$NS" --context="$CTX" \
+  -o jsonpath='{.status.dockerImageRepository}')
 
-Restart the agent to pick up the new config:
-
-```bash
-oc rollout restart deployment/workshop-setup-mcp \
-  -n workshop-setup-mcp --context="$CTX"
-oc rollout status deployment/workshop-setup-mcp \
-  -n workshop-setup-mcp --context="$CTX" --timeout=60s
+helm upgrade workshop-setup-mcp ../../demo/agent/chart/ \
+  -n "$NS" --kube-context="$CTX" \
+  --set image.repository="$AGENT_IMAGE" \
+  --set image.tag=latest \
+  --set config.MODEL_ENDPOINT="${MODEL_ENDPOINT}" \
+  --set config.MODEL_NAME="${MODEL_NAME}" \
+  --set config.OPENAI_API_KEY="${OPENAI_API_KEY:-not-required}" \
+  --set config.MCP_GATEWAY_URL="${MCP_GATEWAY_URL}" \
+  --set config.KEYCLOAK_URL="${KEYCLOAK_URL}" \
+  --set config.KEYCLOAK_REALM=mcp-gateway \
+  --set config.KEYCLOAK_CLIENT_ID=mcp-gateway \
+  --set config.KEYCLOAK_CLIENT_SECRET="${CLIENT_SECRET}" \
+  --set route.enabled=false \
+  --wait
 ```
 
 ## Step 4: Test Admin Access Through the Gateway
@@ -187,19 +200,26 @@ USER_CLIENT_SECRET=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
 echo "User client secret: ${USER_CLIENT_SECRET}"
 ```
 
-Patch the agent config with user credentials:
+Switch the agent to user credentials via helm upgrade:
 
 ```bash
-sed -e "s|<MCP_GATEWAY_URL>|${MCP_GATEWAY_URL}|g" \
-    -e "s|<KEYCLOAK_URL>|${KEYCLOAK_URL}|g" \
-    -e "s|<CLIENT_SECRET>|${USER_CLIENT_SECRET}|g" \
-    agent-config-user.yaml \
-  | oc apply --context="$CTX" -f -
+AGENT_IMAGE=$(oc get is workshop-setup-mcp -n "$NS" --context="$CTX" \
+  -o jsonpath='{.status.dockerImageRepository}')
 
-oc rollout restart deployment/workshop-setup-mcp \
-  -n workshop-setup-mcp --context="$CTX"
-oc rollout status deployment/workshop-setup-mcp \
-  -n workshop-setup-mcp --context="$CTX" --timeout=60s
+helm upgrade workshop-setup-mcp ../../demo/agent/chart/ \
+  -n "$NS" --kube-context="$CTX" \
+  --set image.repository="$AGENT_IMAGE" \
+  --set image.tag=latest \
+  --set config.MODEL_ENDPOINT="${MODEL_ENDPOINT}" \
+  --set config.MODEL_NAME="${MODEL_NAME}" \
+  --set config.OPENAI_API_KEY="${OPENAI_API_KEY:-not-required}" \
+  --set config.MCP_GATEWAY_URL="${MCP_GATEWAY_URL}" \
+  --set config.KEYCLOAK_URL="${KEYCLOAK_URL}" \
+  --set config.KEYCLOAK_REALM=mcp-gateway \
+  --set config.KEYCLOAK_CLIENT_ID=mcp-user-agent \
+  --set config.KEYCLOAK_CLIENT_SECRET="${USER_CLIENT_SECRET}" \
+  --set route.enabled=false \
+  --wait
 ```
 
 ## Step 7: Observe Reduced Tool Access
@@ -208,41 +228,23 @@ Refresh the chat UI and ask:
 
 > List all projects
 
-This still works -- `projects_list` is in the user tool set (8 tools).
+This still works -- `projects_list` is in both the admin and user tool
+sets.
 
 Now ask:
 
 > Show me the top nodes by CPU usage
 
-The model should explain it cannot do this. The `nodes_top` tool is not in the
-user-level tool set. The gateway's wristband only includes the 8 read-only
-tools for non-admin users.
+The agent will attempt to call `nodes_top`. With user credentials, the
+wristband's `allowed-tools` claim contains only the 8 user-level
+tools. If the gateway's wristband enforcement is active, the broker
+rejects the call. If it falls through to the backend, the
+ServiceAccount's Kubernetes RBAC blocks it (the `mcp-viewer` SA has
+`view` role, which does not include node metrics).
 
-Verify the tool count directly:
-
-```bash
-USER_TOKEN=$(curl -sk -X POST \
-  "${KEYCLOAK_URL}/realms/mcp-gateway/protocol/openid-connect/token" \
-  -d "client_id=mcp-user-agent" \
-  -d "client_secret=${USER_CLIENT_SECRET}" \
-  -d "grant_type=client_credentials" \
-  -d "scope=openid groups" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-
-curl -s "${MCP_GATEWAY_URL}" \
-  -H "Authorization: Bearer ${USER_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' \
-  | python3 -c "
-import sys, json
-tools = json.load(sys.stdin).get('result', {}).get('tools', [])
-print(f'Tool count: {len(tools)}')
-for t in tools:
-    print(f'  {t[\"name\"]}')
-"
-```
-
-**Expected:** 8 tools.
+Either way, the user-level agent cannot retrieve node CPU usage --
+demonstrating defense-in-depth: gateway tool filtering and Kubernetes
+RBAC each independently prevent unauthorized access.
 
 ---
 
@@ -273,6 +275,5 @@ allows each component to enforce its own scope of responsibility.
 
 ## What You Deployed
 
-- **Agent ConfigMap (admin)** -- reconfigured the pre-deployed agent to route through the MCP Gateway with `mcp-admins` credentials
 - **mcp-user-agent Keycloak client** -- a second service account in the `mcp-users` group for demonstrating reduced tool access
-- **Agent ConfigMap (user)** -- switched the agent to user-level credentials to observe tool filtering in action
+- **Agent (user config)** -- switched the agent to user-level credentials via helm upgrade to observe tool filtering in action

@@ -2,7 +2,7 @@
 
 ### **3.1 What MCP Is and Why It Matters for AI Workflows**
 
-The Model Context Protocol (MCP) is an open standard developed by Anthropic, that provides a uniform interface for AI models to discover and invoke external tools. An MCP server exposes tools — discrete functions that perform actions or retrieve information — over HTTP using the JSON-RPC 2.0 protocol. An MCP client (such as an AI agent runtime) discovers available tools via `tools/list` and calls them via `tools/call`.
+The Model Context Protocol (MCP) is an open standard, originally created by Anthropic and now governed under the Linux Foundation, that provides a uniform interface for AI models to discover and invoke external tools. An MCP server exposes tools — discrete functions that perform actions or retrieve information — using the JSON-RPC 2.0 protocol over supported transports (stdio, Streamable HTTP, or custom transports). In the OpenShift ecosystem, HTTP transport is required because servers must be routable through the gateway. An MCP client (such as an AI agent runtime) discovers available tools via `tools/list` and calls them via `tools/call`.
 
 MCP decouples tool implementation from AI model integration: While in the past, tool calling has been done via bespoke specs, or by embedding tools into vector databases etc, with MCP we are able to create a translation layer that can make any existing APIs immediately accessible to AI workflows. A team can build an MCP server that wraps a Kubernetes API, a database, a third-party SaaS, or any internal service, and any MCP-compatible AI system can use it without custom integration code.
 

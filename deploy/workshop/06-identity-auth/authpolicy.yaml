@@ -4,7 +4,7 @@
 #   {"<server-name>": ["tool1", "tool2", ...]}
 # where the server name matches the MCPServerRegistration name in the broker config,
 # and tool names are the UNPREFIXED canonical names from the backend MCP server.
-# The broker applies toolPrefix independently when exposing tools to clients.
+# The broker applies prefix independently when exposing tools to clients.
 #
 # Tool authorization is managed via OPA Rego policy that maps Keycloak
 # groups to allowed tool lists. To add tools or groups, edit the Rego

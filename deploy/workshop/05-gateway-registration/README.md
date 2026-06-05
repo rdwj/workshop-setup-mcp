@@ -9,6 +9,12 @@ different user roles.
 running in `mcp-ecosystem`. The MCP Gateway and broker are running in
 `mcp-system`.
 
+> **Working directory:**
+>
+> ```bash
+> cd deploy/workshop/05-gateway-registration
+> ```
+
 ---
 
 ## Step 1: Create the HTTPRoute
@@ -39,53 +45,45 @@ the Gateway's namespace to allow this cross-namespace reference:
 oc apply -f referencegrant.yaml
 ```
 
-## Step 3: Add Istio Namespace Labels (if needed)
-
-The `mcp-ecosystem` namespace needs the Istio injection label for service mesh
-integration. If you applied `mcp-ecosystem-namespace.yaml` from Module 4 this
-is already done. Verify:
-
-```bash
-oc get namespace mcp-ecosystem -o jsonpath='{.metadata.labels.istio-injection}'
-```
-
-If the output is not `enabled`, add the label:
-
-```bash
-oc label namespace mcp-ecosystem istio-injection=enabled --overwrite
-```
-
-## Step 4: Create the MCPServerRegistration
+## Step 3: Create the MCPServerRegistration
 
 The MCPServerRegistration tells the MCP broker about the backend server and
-assigns a `toolPrefix`. All tools from this server will be prefixed with
+assigns a `prefix`. All tools from this server will be prefixed with
 `openshift_` (e.g., `pods_list` becomes `openshift_pods_list`):
 
 ```bash
 oc apply -f mcpserverregistration.yaml
 ```
 
-### Known Issue: toolPrefix is Immutable
+!!! important "`prefix` is Immutable"
 
-The `toolPrefix` field cannot be changed after the MCPServerRegistration is
-created because it affects tool routing in the broker's configuration cache.
-If you need a different prefix, you must delete and recreate the resource.
-Plan your naming convention before applying -- common patterns include
-`<team>_` or `<server>_` prefixes.
+    The `prefix` field cannot be changed after the MCPServerRegistration is
+    created — it affects tool routing in the broker's configuration cache.
+    If you need a different prefix, delete and recreate the resource.
+    Plan your naming convention before applying. Common patterns include
+    `<team>_` or `<server>_` prefixes.
 
-### Known Issue: Broker Does Not Auto-Reload
+!!! important "Broker Does Not Auto-Reload"
 
-At this point, the broker pod does not automatically pick up the new
-registration. The MCPServerRegistration controller updates the gateway config
-Secret, but the broker does not watch for Secret changes.
+    The broker reads its configuration at startup and does not watch for
+    Secret changes. After registering a new server, you must restart the
+    broker for it to discover the new tools.
 
-**Workaround:** Restart the broker deployment:
+Restart the broker deployment:
 
 ```bash
 oc rollout restart deployment/mcp-gateway -n mcp-system
 ```
 
-## Step 5: Verify Tool Registration
+> **Restart cascade:** When the broker restarts, any agent that was
+> already connected to it loses its MCP session. If you have an agent
+> deployed, restart it too:
+>
+> ```bash
+> oc rollout restart deployment/workshop-setup-mcp -n workshop-setup-mcp
+> ```
+
+## Step 4: Verify Tool Registration
 
 After the broker restarts, test that tools are visible through the gateway.
 
@@ -94,14 +92,19 @@ After the broker restarts, test that tools are visible through the gateway.
 > `initialize` method instead:
 
 ```bash
-curl -s http://mcp-gateway.mcp.$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}'):8080/mcp \
+CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
+oc exec -n mcp-system deploy/mcp-gateway -- \
+  curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
+  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
   | python3 -m json.tool
 ```
 
-The response should include `serverInfo` and `capabilities` with `tools`,
-confirming the broker is serving registered tools.
+This runs curl from inside the cluster against the Istio gateway service,
+with a `Host` header matching the HTTPRoute. The response should include
+`serverInfo` from the "Kuadrant MCP Gateway" confirming the broker is
+serving registered tools.
 
 For a full tool listing, the expected set is 14 tools, all prefixed with `openshift_`:
 
@@ -123,9 +126,9 @@ For a full tool listing, the expected set is 14 tools, all prefixed with `opensh
 | openshift_resources_list | List resources by GVK |
 
 If you see 0 tools, the broker may not have restarted. Repeat the rollout
-restart in Step 4.
+restart in Step 3.
 
-## Step 6: Create VirtualMCPServer Resources
+## Step 5: Create MCPVirtualServer Resources
 
 VirtualMCPServers let you expose curated subsets of tools from a single
 backend. This is the foundation for role-based tool access -- instead of
@@ -151,7 +154,7 @@ Verify both are created:
 oc get mcpvirtualservers -n mcp-system
 ```
 
-These VirtualMCPServers are referenced later in AuthPolicy configurations
+These MCPVirtualServers are referenced later in AuthPolicy configurations
 (Module 6) to route users to different tool subsets based on their identity.
 
 ---
@@ -162,6 +165,6 @@ These VirtualMCPServers are referenced later in AuthPolicy configurations
 |---|---|---|
 | HTTPRoute | mcp-ecosystem | Routes `openshift.mcp.<domain>` to the MCP server |
 | ReferenceGrant | mcp-system | Allows cross-namespace Gateway reference |
-| MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (toolPrefix: openshift_) |
+| MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: openshift_) |
 | MCPVirtualServer (admin-tools) | mcp-system | Full 14-tool set for administrators |
 | MCPVirtualServer (user-tools) | mcp-system | 8-tool read-only subset for developers |
