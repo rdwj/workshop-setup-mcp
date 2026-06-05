@@ -45,23 +45,7 @@ the Gateway's namespace to allow this cross-namespace reference:
 oc apply -f referencegrant.yaml
 ```
 
-## Step 3: Add Istio Namespace Labels (if needed)
-
-The `mcp-ecosystem` namespace needs the Istio injection label for service mesh
-integration. If you applied `mcp-ecosystem-namespace.yaml` from Module 4 this
-is already done. Verify:
-
-```bash
-oc get namespace mcp-ecosystem -o jsonpath='{.metadata.labels.istio-injection}'
-```
-
-If the output is not `enabled`, add the label:
-
-```bash
-oc label namespace mcp-ecosystem istio-injection=enabled --overwrite
-```
-
-## Step 4: Create the MCPServerRegistration
+## Step 3: Create the MCPServerRegistration
 
 The MCPServerRegistration tells the MCP broker about the backend server and
 assigns a `prefix`. All tools from this server will be prefixed with
@@ -91,7 +75,15 @@ Secret, but the broker does not watch for Secret changes.
 oc rollout restart deployment/mcp-gateway -n mcp-system
 ```
 
-## Step 5: Verify Tool Registration
+> **Restart cascade:** When the broker restarts, any agent that was
+> already connected to it loses its MCP session. If you have an agent
+> deployed, restart it too:
+>
+> ```bash
+> oc rollout restart deployment/workshop-setup-mcp -n workshop-setup-mcp
+> ```
+
+## Step 4: Verify Tool Registration
 
 After the broker restarts, test that tools are visible through the gateway.
 
@@ -134,9 +126,9 @@ For a full tool listing, the expected set is 14 tools, all prefixed with `opensh
 | openshift_resources_list | List resources by GVK |
 
 If you see 0 tools, the broker may not have restarted. Repeat the rollout
-restart in Step 4.
+restart in Step 3.
 
-## Step 6: Create VirtualMCPServer Resources
+## Step 5: Create MCPVirtualServer Resources
 
 VirtualMCPServers let you expose curated subsets of tools from a single
 backend. This is the foundation for role-based tool access -- instead of

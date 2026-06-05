@@ -208,13 +208,21 @@ oc annotate route workshop-setup-mcp-ui \
 # All pods should be Running
 oc get pods -n "$NS" --context="$CTX" | grep -v build
 
-# Agent should show MCP connection info
+# Agent should show "Connected to MCP server" and "14 tool(s)"
 oc logs deployment/workshop-setup-mcp -n "$NS" --context="$CTX" --tail=20
 
 # Get the chat UI URL
 UI_URL="https://$(oc get route workshop-setup-mcp-ui -n "$NS" --context="$CTX" \
   -o jsonpath='{.spec.host}')"
 echo "Chat UI: ${UI_URL}"
+```
+
+If the agent logs show connection errors or you see "Client is not
+connected" errors in the chat UI, the broker may have restarted since the
+agent connected. Restart the agent to re-establish the MCP session:
+
+```bash
+oc rollout restart deployment/workshop-setup-mcp -n "$NS" --context="$CTX"
 ```
 
 Open the chat UI in your browser and try a basic question:

@@ -26,7 +26,6 @@ Create a namespace for MCP server workloads:
 
 ```bash
 oc create namespace mcp-ecosystem
-oc label namespace mcp-ecosystem istio-injection=enabled
 ```
 
 ---

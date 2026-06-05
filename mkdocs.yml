@@ -31,6 +31,7 @@ nav:
     - "7. Deploy Agent": 07-deploy-agent/README.md
     - "8. Agent Testing": 08-agent-test/README.md
   - Reference:
+    - "Troubleshooting": troubleshooting.md
     - "Layered Authorization Model": mcp-layered-authorization.md
 
 markdown_extensions:
