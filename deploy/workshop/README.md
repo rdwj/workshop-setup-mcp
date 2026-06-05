@@ -16,9 +16,9 @@ identity-driven access control, and agent integration.
 - OpenShift 4.16+ cluster with RHOAI 3.4 installed (use `deploy/base`
   kustomize overlay if starting from scratch)
 - `oc` CLI authenticated as cluster-admin
-- `openssl` available on your workstation (for key generation in Module 5)
+- `openssl` available on your workstation (for key generation in Module 6)
 - `python3` available on your workstation (for JSON parsing in test commands; `jq` works as an alternative)
-- `helm` available on your workstation (for optional Module 7)
+- `helm` available on your workstation (for optional Module 8)
 - A `MODEL_ENDPOINT` URL for an OpenAI-compatible model that supports tool
   calling (see Module 0)
 
@@ -48,8 +48,8 @@ controls which tools each identity can see and invoke.
 
 ## Duration
 
-Core modules (1--6): 2--3 hours
-Optional modules (7--8): 1 hour each
+Core modules (1--7): 2--3 hours
+Optional modules (8--9): 1 hour each
 
 ## Modules
 
@@ -58,12 +58,13 @@ Optional modules (7--8): 1 hour each
 | 0 | `00-model-endpoint/` | Set up a model endpoint for agent testing | 10 min |
 | 1 | `01-gateway-infrastructure/` | Deploy Istio, Kuadrant, and the Gateway API infrastructure | 30 min |
 | 2 | `02-mcp-gateway/` | Install the MCP Gateway Operator and create the gateway with MCPGatewayExtension | 20 min |
-| 3 | `03-mcp-server/` | Deploy the OpenShift MCP server from the catalog (with manual prerequisites) | 20 min |
-| 4 | `04-gateway-registration/` | Register the MCP server with the gateway via MCPServerRegistration and HTTPRoute | 15 min |
-| 5 | `05-identity-auth/` | Install Keycloak, configure realm/groups, generate wristband keys, apply AuthPolicy | 30--45 min |
-| 6 | `06-agent-test/` | Reconfigure the pre-deployed agent to use the gateway, test admin vs user tool access | 15--20 min |
-| 7 (optional) | `07-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
-| 8 (optional) | `08-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
+| 3 | `03-mcp-server-prerequisites/` | Create the ServiceAccount, ClusterRoleBinding, and ConfigMap that the MCP server requires | 10 min |
+| 4 | `04-mcp-server/` | Deploy the OpenShift MCP server from the catalog | 10 min |
+| 5 | `05-gateway-registration/` | Register the MCP server with the gateway via MCPServerRegistration and HTTPRoute | 15 min |
+| 6 | `06-identity-auth/` | Install Keycloak, configure realm/groups, generate wristband keys, apply AuthPolicy | 30--45 min |
+| 7 | `07-agent-test/` | Reconfigure the pre-deployed agent to use the gateway, test admin vs user tool access | 15--20 min |
+| 8 (optional) | `08-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
+| 9 (optional) | `09-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
 
 ## Real-World Deployment Patterns
 
@@ -73,14 +74,18 @@ intervention -- these are documented inline with step-by-step workarounds.
 These scenarios reflect actual production deployments and build operational
 knowledge.
 
-**Module 3 -- MCP Server Deployment:**
+**Module 3 -- MCP Server Prerequisites:**
+- The lifecycle operator intentionally does not create security-sensitive
+  resources (ServiceAccount, ClusterRoleBinding, ConfigMap) to prevent
+  privilege escalation. The platform engineer provisions these before
+  deployment. See [Layered Authorization Model](../../docs/mcp-layered-authorization.md).
+
+**Module 4 -- MCP Server Deployment:**
 - The built-in catalog image (`registry.redhat.io/.../openshift-mcp-server-rhel9:0.2`)
   does not exist. You must patch to the working image from Quay.
-- The RHOAI dashboard does not auto-create prerequisites (ServiceAccount,
-  ConfigMap) that the lifecycle operator requires. Create them manually.
 - The lifecycle operator OOMKills at the default 128Mi limit. Patch to 512Mi.
 
-**Module 4 -- Gateway Registration:**
+**Module 5 -- Gateway Registration:**
 - The broker hardcodes the Istio service name as `<gateway>-istio`. If your
   GatewayClass has a different name, set `privateHost` on the
   MCPGatewayExtension.
@@ -89,7 +94,7 @@ knowledge.
 - `toolPrefix` on MCPServerRegistration is immutable once set. Delete and
   recreate if you need to change it.
 
-**Module 5 -- Identity/Auth:**
+**Module 6 -- Identity/Auth:**
 - RHBK operator only supports OwnNamespace install mode.
 - Tokens must include `scope=openid groups` or group-based routing fails
   silently.
@@ -98,7 +103,7 @@ knowledge.
 - Wristband `allowed-tools` must use unprefixed tool names keyed by
   MCPServerRegistration name. Including the prefix causes double-prefixing.
 
-**Module 8 -- External Model (if attempted):**
+**Module 9 -- External Model (if attempted):**
 - The Gen AI Playground does not forward MCP auth tokens to the gateway.
   Register MCP servers with their direct ClusterIP URL instead.
 

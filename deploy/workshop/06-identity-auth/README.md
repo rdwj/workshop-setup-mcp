@@ -1,4 +1,4 @@
-# Module 5: Identity and Authentication
+# Module 6: Identity and Authentication
 
 Set up Keycloak-based JWT authentication for the MCP Gateway with
 wristband-signed tokens -- short-lived signed JWTs that the broker trusts for
@@ -13,7 +13,7 @@ After this module, the gateway will:
 **Time:** 30--45 minutes
 
 **Prerequisites:**
-- Modules 1--4 complete (gateway infrastructure, MCP Gateway, MCP server, registration)
+- Modules 1--5 complete (gateway infrastructure, MCP Gateway, MCP server prerequisites, MCP server, registration)
 - `openssl` available on your workstation
 
 > **Note:** The RHBK operator may inherit Manual InstallPlan approval from

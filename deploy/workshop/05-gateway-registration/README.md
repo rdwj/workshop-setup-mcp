@@ -1,11 +1,11 @@
-# Module 4: Gateway Registration
+# Module 5: Gateway Registration
 
 This module registers the OpenShift MCP server with the MCP Gateway so that
 its tools are accessible through a single gateway endpoint. You will also
 create VirtualMCPServer resources that expose curated tool subsets for
 different user roles.
 
-**Prerequisites** -- Modules 1-3 completed. The OpenShift MCP server pod is
+**Prerequisites** -- Modules 1-4 completed. The OpenShift MCP server pod is
 running in `mcp-ecosystem`. The MCP Gateway and broker are running in
 `mcp-system`.
 
@@ -42,7 +42,7 @@ oc apply -f referencegrant.yaml
 ## Step 3: Add Istio Namespace Labels (if needed)
 
 The `mcp-ecosystem` namespace needs the Istio injection label for service mesh
-integration. If you applied `mcp-ecosystem-namespace.yaml` from Module 3 this
+integration. If you applied `mcp-ecosystem-namespace.yaml` from Module 4 this
 is already done. Verify:
 
 ```bash
@@ -152,7 +152,7 @@ oc get mcpvirtualservers -n mcp-system
 ```
 
 These VirtualMCPServers are referenced later in AuthPolicy configurations
-(Module 5) to route users to different tool subsets based on their identity.
+(Module 6) to route users to different tool subsets based on their identity.
 
 ---
 

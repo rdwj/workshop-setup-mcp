@@ -1,4 +1,4 @@
-# Module 6: Agent Testing Through the Gateway
+# Module 7: Agent Testing Through the Gateway
 
 Connect a live agent to the MCP Gateway and observe how identity-based tool
 filtering changes what the agent can do.
@@ -11,7 +11,7 @@ between admin and user-level access.
 **Time:** 15--20 minutes
 
 **Prerequisites:**
-- Module 5 complete (Keycloak + AuthPolicy deployed)
+- Module 6 complete (Keycloak + AuthPolicy deployed)
 - Agent, gateway proxy, and chat UI running in `workshop-setup-mcp` namespace
 
 ## Variables

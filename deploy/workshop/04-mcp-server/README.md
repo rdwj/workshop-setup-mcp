@@ -1,10 +1,10 @@
-# Module 3: Deploy an MCP Server
+# Module 4: Deploy an MCP Server
 
 This module deploys the OpenShift MCP server -- a read-only MCP server that
 exposes Kubernetes API operations as tools. You will encounter a known issue
 with the built-in catalog image and learn how to work around it.
 
-**Prerequisites** -- Module 2 completed. The MCP Lifecycle Operator is running.
+**Prerequisites** -- Module 3 completed. The mcp-ecosystem namespace, ServiceAccount, and ConfigMap exist.
 
 ---
 
@@ -23,59 +23,12 @@ Deployment never becomes ready. The lifecycle operator logs show
 
 If you prefer to skip the dashboard and deploy directly, start at Step 2.
 
-## Step 2: Create the mcp-ecosystem Namespace
+## Step 2: Deploy the MCPServer CR
 
-Create a namespace for MCP server workloads. The Istio sidecar injection label
-is included so that the service mesh can manage traffic:
-
-```bash
-oc apply -f mcp-ecosystem-namespace.yaml
-```
-
-## Step 3: Understand the Known Issues
-
-There are two problems with the catalog-based deployment:
-
-1. **Unpublished image tag** -- The built-in catalog references
-   `registry.redhat.io/openshift-mcp-beta/openshift-mcp-server-rhel9:0.2`.
-   At the time of this workshop, that image tag has not yet been published to
-   the registry. You will use the upstream Quay image as the working
-   reference.
-
-2. **Missing prerequisites** -- The RHOAI dashboard does not create the
-   ServiceAccount, ClusterRoleBinding, or ConfigMap that the MCPServer CR
-   requires. The lifecycle operator validates that these exist but does not
-   create them.
-
-## Step 4: Apply the Prerequisites
-
-The OpenShift MCP server needs:
-
-- A **ServiceAccount** (`mcp-viewer`) for Kubernetes API access
-- A **ClusterRoleBinding** granting the `view` ClusterRole to that SA
-- A **ConfigMap** with the server configuration (read-only mode, denied
-  resources, toolsets)
-
-Apply them all at once:
-
-```bash
-oc apply -f openshift-mcp-prerequisites.yaml
-```
-
-Review the ConfigMap to understand what the server is configured to do:
-
-```bash
-oc get configmap openshift-mcp-server-config -n mcp-ecosystem -o yaml
-```
-
-Key settings:
-
-- `read_only = true` -- no create/update/delete operations
-- `disable_destructive = true` -- destructive tools are disabled
-- `toolsets = ["core", "config"]` -- includes pod, node, namespace, and config tools
-- `denied_resources` -- Secrets are denied to prevent credential exposure
-
-## Step 5: Deploy the MCPServer CR
+> **Known issue:** The built-in catalog references an image tag
+> (`registry.redhat.io/openshift-mcp-beta/openshift-mcp-server-rhel9:0.2`) that has not yet
+> been published. The commands below use the upstream Quay image as the
+> working reference.
 
 If you deployed via the dashboard in Step 1, an MCPServer CR already exists but
 has the wrong image. Patch it:
@@ -117,7 +70,7 @@ spec:
 EOF
 ```
 
-## Step 6: Verify the Pod is Running
+## Step 3: Verify the Pod is Running
 
 The lifecycle operator creates a Deployment and Service from the MCPServer CR.
 Wait for the pod to start:
@@ -160,8 +113,5 @@ You should see a response with `serverInfo` and `capabilities` including
 
 | Resource | Namespace | Purpose |
 |---|---|---|
-| mcp-ecosystem Namespace | -- | Workload namespace for MCP servers |
-| ServiceAccount (mcp-viewer) | mcp-ecosystem | K8s API identity for the MCP server |
-| ClusterRoleBinding | cluster-scoped | Grants `view` role to mcp-viewer SA |
-| ConfigMap | mcp-ecosystem | Server config: read-only, denied resources |
 | MCPServer CR | mcp-ecosystem | Tells the lifecycle operator what to deploy |
+| Deployment + Service | mcp-ecosystem | Created automatically by the lifecycle operator |

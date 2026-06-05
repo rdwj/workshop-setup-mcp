@@ -84,4 +84,4 @@ curl -sk "${MODEL_ENDPOINT}/models"
 ```
 
 Record your `MODEL_ENDPOINT` and `MODEL_NAME` -- you will use them in
-Module 6 when configuring the agent.
+Module 7 when configuring the agent.
