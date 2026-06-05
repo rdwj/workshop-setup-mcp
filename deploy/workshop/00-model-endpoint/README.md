@@ -94,12 +94,25 @@ export MODEL_NAME="redhataigpt-oss-20b"
 
 ## Verify
 
-Regardless of which option you chose, verify the model endpoint responds:
+Regardless of which option you chose, verify the model endpoint responds.
+If you set `OPENAI_API_KEY` above, include the auth header; otherwise
+omit it:
 
 ```bash
 curl -sk ${OPENAI_API_KEY:+-H "Authorization: Bearer ${OPENAI_API_KEY}"} \
-  "${MODEL_ENDPOINT}/models"
+  "${MODEL_ENDPOINT}/models" \
+  | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for m in data.get('data', []):
+        print(m['id'])
+except (json.JSONDecodeError, KeyError):
+    print('ERROR: endpoint did not return valid JSON. Check MODEL_ENDPOINT URL.', file=sys.stderr)
+    sys.exit(1)
+"
 ```
 
-Record your `MODEL_ENDPOINT`, `MODEL_NAME`, and `OPENAI_API_KEY` (if
-applicable) -- you will use them in Module 7 when configuring the agent.
+You should see a list of model IDs. Record your `MODEL_ENDPOINT`,
+`MODEL_NAME`, and `OPENAI_API_KEY` (if applicable) -- you will use them
+in Module 7 when configuring the agent.
