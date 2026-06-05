@@ -99,7 +99,7 @@ knowledge.
   MCPGatewayExtension.
 - The broker does not auto-reload when the config Secret changes. Restart
   the broker pod after registering servers.
-- `toolPrefix` on MCPServerRegistration is immutable once set. Delete and
+- `prefix` on MCPServerRegistration is immutable once set. Delete and
   recreate if you need to change it.
 
 **Module 6 -- Identity/Auth:**
@@ -108,7 +108,7 @@ knowledge.
   silently.
 - The gateway forwards the `Authorization` header to backends, breaking
   ServiceAccount auth. The AuthPolicy must strip it.
-- Wristband `allowed-tools` must use unprefixed tool names keyed by
+- Wristband `allowed-capabilities` must use unprefixed tool names keyed by
   MCPServerRegistration name. Including the prefix causes double-prefixing.
 
 **Module 9 -- External Model (if attempted):**
@@ -121,16 +121,24 @@ Full details: [Deployment Findings](https://github.com/rdwj/workshop-setup/blob/
 
 ## Cluster Automation
 
-The `ansible/` directory contains playbooks that automate the full stack
-deployment. For instructor-led workshops, run these before the session:
+The `deploy/base/` directory contains a Kustomize overlay that installs
+platform prerequisites (RHOAI, NFD, GPU operator, Authorino, Web Terminal).
+For instructor-led workshops, apply this before the session:
 
 ```bash
-cd ansible
-ansible-playbook gateway-infrastructure.yml -i inventory/<your-inventory>.yml
-ansible-playbook mcp-setup.yml -i inventory/<your-inventory>.yml
-ansible-playbook ecosystem-setup.yml -i inventory/<your-inventory>.yml
+# First pass: creates namespaces and operator subscriptions
+oc apply -k deploy/base --context="$CTX"
+
+# Wait for operator CRDs to become available
+# (RHOAI, NFD, and Authorino operators must finish installing)
+
+# Second pass: creates operand CRs (DataScienceCluster, etc.)
+oc apply -k deploy/base --context="$CTX"
 ```
 
+For repeatable multi-cluster provisioning, point an ArgoCD Application at
+`deploy/base/` (or a site-specific overlay under `deploy/overlays/`).
+
 The workshop modules are designed to be followed manually so students
-understand each component. The ansible playbooks are for repeatable
+understand each component. The Kustomize base and ArgoCD are for repeatable
 provisioning, not for the workshop itself.

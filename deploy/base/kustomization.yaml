@@ -15,8 +15,8 @@ resources:
 
   # --- Operands (CRs created by the operators above) ---
   # NOTE: These require the operator CRDs to exist first.
-  # When applying without Ansible orchestration, apply namespaces+operators,
-  # wait for CRDs, then apply operands in a second pass:
+  # Apply namespaces+operators first, wait for CRDs, then apply operands
+  # in a second pass:
   #   oc apply -k deploy/base  (will partially fail on operands — expected)
   #   <wait for operators to install>
   #   oc apply -k deploy/base  (second pass picks up operands)
