@@ -10,11 +10,11 @@ Browser --> UI (port 3000) --> Gateway (port 8080) --> Agent (port 8080) --> MCP
                                                     LLM endpoint (vLLM)
 ```
 
-| Component | Project | Description |
-|-----------|---------|-------------|
-| Agent | `workshop-setup-mcp` | Python/fipsagents AI agent with MCP tool integration |
-| Gateway | `workshop-setup-mcp-gateway` | Go HTTP gateway (auth, file upload, routing) |
-| UI | `workshop-setup-mcp-ui` | Go chat UI with streaming support |
+| Component | Directory | Description |
+|-----------|-----------|-------------|
+| Agent | `demo/agent/` | Python/fipsagents AI agent with MCP tool integration |
+| Gateway | `demo/gateway/` | Go HTTP gateway (auth, file upload, routing) |
+| UI | `demo/ui/` | Go chat UI with streaming support |
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ oc create namespace "$NS" --context="$CTX" 2>/dev/null || true
 ### Agent
 
 ```bash
-cd workshop-setup-mcp
+cd demo/agent
 
 # Create BuildConfig (first time only)
 cat <<'EOF' | oc apply -n "$NS" --context="$CTX" -f -
@@ -70,19 +70,15 @@ oc start-build workshop-setup-mcp --from-dir=. -n "$NS" --context="$CTX" --follo
 ### Gateway
 
 ```bash
-cd workshop-setup-mcp-gateway
-sed 's/PLACEHOLDER/workshop-setup-mcp-gateway/g' build/buildconfig.yaml \
-  | oc apply -n "$NS" --context="$CTX" -f -
-oc start-build workshop-setup-mcp-gateway --from-dir=. -n "$NS" --context="$CTX" --follow
+cd demo/gateway
+make build-openshift PROJECT="$NS"
 ```
 
 ### UI
 
 ```bash
-cd workshop-setup-mcp-ui
-sed 's/PLACEHOLDER/workshop-setup-mcp-ui/g' build/buildconfig.yaml \
-  | oc apply -n "$NS" --context="$CTX" -f -
-oc start-build workshop-setup-mcp-ui --from-dir=. -n "$NS" --context="$CTX" --follow
+cd demo/ui
+make build-openshift PROJECT="$NS"
 ```
 
 ## Deploy
@@ -106,7 +102,7 @@ Key variables (see `agent.yaml` for the full list):
 AGENT_IMAGE=$(oc get is workshop-setup-mcp -n "$NS" --context="$CTX" \
   -o jsonpath='{.status.dockerImageRepository}')
 
-helm upgrade --install workshop-setup-mcp chart/ \
+helm upgrade --install workshop-setup-mcp demo/agent/chart/ \
   -n "$NS" --kube-context="$CTX" \
   --set image.repository="$AGENT_IMAGE" \
   --set image.tag=latest \
@@ -125,7 +121,7 @@ GW_IMAGE=$(oc get is workshop-setup-mcp-gateway -n "$NS" --context="$CTX" \
   -o jsonpath='{.status.dockerImageRepository}')
 
 helm upgrade --install workshop-setup-mcp-gateway \
-  ../workshop-setup-mcp-gateway/chart/ \
+  demo/gateway/chart/ \
   -n "$NS" --kube-context="$CTX" \
   --set image.repository="$GW_IMAGE" \
   --set image.tag=latest \
@@ -142,7 +138,7 @@ UI_IMAGE=$(oc get is workshop-setup-mcp-ui -n "$NS" --context="$CTX" \
   -o jsonpath='{.status.dockerImageRepository}')
 
 helm upgrade --install workshop-setup-mcp-ui \
-  ../workshop-setup-mcp-ui/chart/ \
+  demo/ui/chart/ \
   -n "$NS" --kube-context="$CTX" \
   --set image.repository="$UI_IMAGE" \
   --set image.tag=latest \

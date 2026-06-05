@@ -4,11 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-An OpenShift cluster operations agent built on the fipsagents BaseAgent framework. The agent connects to MCP (Model Context Protocol) servers through an MCP Gateway that uses Keycloak JWT tokens for identity-based tool access control. Admin users see 14 tools; regular users see 8 read-only tools.
+A hands-on workshop for deploying the MCP Ecosystem on Red Hat OpenShift AI. The repo contains:
 
-The agent itself is minimal (`src/agent.py` is ~30 lines). Most complexity lives in the authentication flow, the workshop deployment stages, and the framework (vendored, do not edit).
+- **Workshop modules** (`deploy/workshop/`) — step-by-step guides for deploying the MCP Gateway, MCP servers, identity/auth, and an agent
+- **Platform base** (`deploy/base/`) — Kustomize overlay for cluster prerequisites (RHOAI, NFD, Authorino)
+- **Demo stack** (`demo/`) — three components that form the end-to-end demo:
+  - `demo/agent/` — Python/fipsagents AI agent with MCP tool integration
+  - `demo/gateway/` — Go HTTP gateway (auth, file upload, routing)
+  - `demo/ui/` — Go chat UI with streaming support
+- **Reference docs** (`docs/MCP-Ecosystem/`) — comprehensive MCP Ecosystem architecture guide
+
+The agent itself is minimal (`demo/agent/src/agent.py` is ~30 lines). Most complexity lives in the authentication flow, the workshop deployment stages, and the framework (vendored, do not edit).
 
 ## Build and Test Commands
+
+Agent commands (run from `demo/agent/`):
 
 ```bash
 make install                         # Create .venv, install deps
@@ -21,15 +31,13 @@ make deploy PROJECT=<ns>             # Deploy to OpenShift via Helm
 make redeploy PROJECT=<ns> IMAGE_TAG=<tag>  # Force fresh image pull
 make eval                            # Run all eval cases
 make clean PROJECT=<ns>              # Remove from OpenShift
+```
 
-# Single test or pattern
-pytest tests/test_example_agent.py
-pytest -k "test_step"
+Gateway and UI commands (run from `demo/gateway/` or `demo/ui/`):
 
-# Specific eval case or tag
-python -m evals.run_evals --case=basic_happy_path
-python -m evals.run_evals --tag=smoke
-python -m evals.run_evals --dry-run   # Structural trace, no LLM call
+```bash
+make build-openshift PROJECT=<ns>    # Create BuildConfig + build on cluster
+make deploy PROJECT=<ns>             # Deploy via Helm
 ```
 
 ## Architecture
@@ -64,9 +72,10 @@ The `deploy/` directory contains Kustomize overlays that build up the full stack
 | 04 | mcp-server | MCP server deployment |
 | 05 | gateway-registration | Register MCP servers with gateway |
 | 06 | identity-auth | Keycloak realm, clients, user groups |
-| 07 | agent-test | Agent deployment (admin + user configs) |
-| 08 | vault | HashiCorp Vault integration |
-| 09 | external-model | External model endpoint |
+| 07 | deploy-agent | Build and deploy the agent, gateway, and UI |
+| 08 | agent-test | Agent testing (admin + user configs) |
+| 09 | vault | HashiCorp Vault integration |
+| 10 | external-model | External model endpoint |
 
 `deploy/base/` contains OpenShift operator subscriptions (RHOAI, NFD, Authorino, Web Terminal, GPU).
 
@@ -82,17 +91,15 @@ When `prompt_assembly:` is enabled in `agent.yaml` (default), the system prompt 
 
 | File | Purpose |
 |------|---------|
-| `src/agent.py` | Agent subclass -- your code goes here |
-| `src/token_manager.py` | OAuth token management |
-| `src/fipsagents/` | Vendored framework -- do not edit |
-| `tools/check_auth.py` | Gateway connectivity/auth verification tool |
-| `hooks/acquire-token.sh` | Keycloak OAuth token acquisition script |
-| `scripts/start-with-auth.sh` | Container entrypoint (acquires token, starts agent) |
-| `scripts/setup-keycloak.sh` | Creates Keycloak realm, clients, groups |
-| `scripts/demo.sh` | End-to-end auth flow demonstration |
-| `agent.yaml` | All config with `${VAR:-default}` env var substitution |
-| `identity.md` | Agent identity (who it is) |
-| `prompts/system.md` | System prompt with variable substitution |
+| `demo/agent/src/agent.py` | Agent subclass -- your code goes here |
+| `demo/agent/src/token_manager.py` | OAuth token management |
+| `demo/agent/src/fipsagents/` | Vendored framework -- do not edit |
+| `demo/agent/tools/check_auth.py` | Gateway connectivity/auth verification tool |
+| `demo/agent/hooks/acquire-token.sh` | Keycloak OAuth token acquisition script |
+| `demo/agent/scripts/start-with-auth.sh` | Container entrypoint (acquires token, starts agent) |
+| `demo/agent/agent.yaml` | All config with `${VAR:-default}` env var substitution |
+| `demo/agent/identity.md` | Agent identity (who it is) |
+| `demo/agent/prompts/system.md` | System prompt with variable substitution |
 
 ## Agent Development Patterns
 

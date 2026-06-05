@@ -1,0 +1,16 @@
+{
+  "generator": {
+    "tool": "fips-agents-cli",
+    "version": "0.15.3"
+  },
+  "template": {
+    "url": "https://github.com/fips-agents/ui-template",
+    "type": "ui",
+    "commit": "b8fac032db8f",
+    "full_commit": "b8fac032db8f9a659468f0776b7e2d109ca33e60"
+  },
+  "project": {
+    "name": "workshop-setup-mcp-ui",
+    "created_at": "2026-06-04T12:45:17.138496+00:00"
+  }
+}
