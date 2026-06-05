@@ -48,8 +48,8 @@ controls which tools each identity can see and invoke.
 
 ## Duration
 
-Core modules (1--7): 2--3 hours
-Optional modules (8--9): 1 hour each
+Core modules (1--8): 2.5--3.5 hours
+Optional modules (9--10): 1 hour each
 
 ## Modules
 
@@ -62,9 +62,10 @@ Optional modules (8--9): 1 hour each
 | 4 | `04-mcp-server/` | Deploy the OpenShift MCP server from the catalog | 10 min |
 | 5 | `05-gateway-registration/` | Register the MCP server with the gateway via MCPServerRegistration and HTTPRoute | 15 min |
 | 6 | `06-identity-auth/` | Install Keycloak, configure realm/groups, generate wristband keys, apply AuthPolicy | 30--45 min |
-| 7 | `07-agent-test/` | Reconfigure the pre-deployed agent to use the gateway, test admin vs user tool access | 15--20 min |
-| 8 (optional) | `08-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
-| 9 (optional) | `09-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
+| 7 | `07-deploy-agent/` | Build and deploy the agent, gateway proxy, and chat UI | 15--20 min |
+| 8 | `08-agent-test/` | Reconfigure the agent to use the gateway, test admin vs user tool access | 15--20 min |
+| 9 (optional) | `09-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
+| 10 (optional) | `10-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
 
 ## Real-World Deployment Patterns
 

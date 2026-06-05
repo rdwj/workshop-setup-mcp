@@ -1,23 +1,22 @@
-# Module 7: Agent Testing Through the Gateway
+# Module 8: Agent Testing Through the Gateway
 
 Connect a live agent to the MCP Gateway and observe how identity-based tool
 filtering changes what the agent can do.
 
-This module uses the pre-deployed agent, gateway proxy, and chat UI in the
-`workshop-setup-mcp` namespace. You will reconfigure the agent to route
-tool calls through the authenticated MCP Gateway and see the difference
-between admin and user-level access.
+You will reconfigure the agent deployed in Module 7 to route tool calls
+through the authenticated MCP Gateway and see the difference between admin
+and user-level access.
 
 **Time:** 15--20 minutes
 
 **Prerequisites:**
+- Module 7 complete (agent, gateway proxy, and chat UI deployed)
 - Module 6 complete (Keycloak + AuthPolicy deployed)
-- Agent, gateway proxy, and chat UI running in `workshop-setup-mcp` namespace
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/07-agent-test
+> cd deploy/workshop/08-agent-test
 > ```
 
 ## Variables
