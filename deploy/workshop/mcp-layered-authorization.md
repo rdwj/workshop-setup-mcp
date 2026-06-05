@@ -1,0 +1,1 @@
+../../docs/mcp-layered-authorization.md

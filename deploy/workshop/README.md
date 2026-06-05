@@ -78,7 +78,7 @@ knowledge.
 - The lifecycle operator intentionally does not create security-sensitive
   resources (ServiceAccount, ClusterRoleBinding, ConfigMap) to prevent
   privilege escalation. The platform engineer provisions these before
-  deployment. See [Layered Authorization Model](../../docs/mcp-layered-authorization.md).
+  deployment. See [Layered Authorization Model](mcp-layered-authorization.md).
 
 **Module 4 -- MCP Server Deployment:**
 - The built-in catalog image (`registry.redhat.io/.../openshift-mcp-server-rhel9:0.2`)

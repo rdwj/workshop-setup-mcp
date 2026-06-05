@@ -10,7 +10,7 @@ This module creates the Kubernetes resources that MCP servers need before they c
 
 The MCP Lifecycle Operator intentionally does not create security-sensitive resources like ServiceAccounts and ClusterRoleBindings. This is a deliberate design decision to prevent privilege escalation -- the operator runs with limited permissions so that a compromised or misconfigured catalog entry cannot create arbitrary cluster-level access. Instead, the MCP Catalog declares what prerequisites each server needs (in its `prerequisites` metadata), and the platform engineer provisions them before deployment. This separation ensures that cluster RBAC changes go through the same review and approval process as any other infrastructure change.
 
-For a deeper look at how the authorization stack is structured, see [Layered Authorization Model](../../../docs/mcp-layered-authorization.md).
+For a deeper look at how the authorization stack is structured, see [Layered Authorization Model](../mcp-layered-authorization.md).
 
 ---
 

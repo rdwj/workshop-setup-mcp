@@ -24,10 +24,11 @@ nav:
     - "0. Model Endpoint": 00-model-endpoint/README.md
     - "1. Gateway Infrastructure": 01-gateway-infrastructure/README.md
     - "2. MCP Gateway": 02-mcp-gateway/README.md
-    - "3. Deploy MCP Server": 03-mcp-server/README.md
-    - "4. Gateway Registration": 04-gateway-registration/README.md
-    - "5. Identity & Auth": 05-identity-auth/README.md
-    - "6. Agent Testing": 06-agent-test/README.md
+    - "3. MCP Server Prerequisites": 03-mcp-server-prerequisites/README.md
+    - "4. Deploy MCP Server": 04-mcp-server/README.md
+    - "5. Gateway Registration": 05-gateway-registration/README.md
+    - "6. Identity & Auth": 06-identity-auth/README.md
+    - "7. Agent Testing": 07-agent-test/README.md
 
 markdown_extensions:
   - admonition
