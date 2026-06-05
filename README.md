@@ -16,7 +16,7 @@ responds to natural language queries about cluster state.
 - Same gateway, same MCP server — different identity, different access
 
 The agent is part of the
-[MCP Ecosystem Workshop](https://github.com/rdwj/workshop-setup),
+[MCP Ecosystem Workshop](https://rdwj.github.io/workshop-setup-mcp/),
 where students deploy and configure the full MCP stack, then use this
 agent to verify everything works end-to-end.
 
