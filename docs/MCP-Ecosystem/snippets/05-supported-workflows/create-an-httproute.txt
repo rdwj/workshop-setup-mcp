@@ -1,8 +1,0 @@
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /mcp
-      backendRefs:
-        - name: github-mcp-server
-          port: 8080

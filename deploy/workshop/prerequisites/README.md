@@ -10,9 +10,9 @@ workshop. This takes 5 minutes and prevents delays in later modules.
 | Tool | Used For | Modules | Verify | Install |
 |------|----------|---------|--------|---------|
 | `oc` | OpenShift CLI | All | `oc version` | [Red Hat OpenShift Downloads](https://console.redhat.com/openshift/downloads) |
-| `helm` | Kubernetes package manager | 7--8 | `helm version` | [Helm Install Guide](https://helm.sh/docs/intro/install/) |
-| `openssl` | TLS key generation | 6 | `openssl version` | Pre-installed on macOS and Linux |
-| `python3` | JSON parsing in test commands | 0, 4--8 | `python3 --version` | [python.org](https://www.python.org/downloads/) |
+| `helm` | Kubernetes package manager | 8--9 | `helm version` | [Helm Install Guide](https://helm.sh/docs/intro/install/) |
+| `openssl` | TLS key generation | 7 | `openssl version` | Pre-installed on macOS and Linux |
+| `python3` | JSON parsing in test commands | 1, 5--9 | `python3 --version` | [python.org](https://www.python.org/downloads/) |
 
 Run each verify command now. If any command is not found, install it
 before proceeding.
@@ -20,7 +20,7 @@ before proceeding.
 !!! note "macOS ships LibreSSL"
 
     macOS includes LibreSSL rather than OpenSSL. This works fine for the
-    key generation in Module 6 -- no action needed.
+    key generation in Module 7 -- no action needed.
 
 !!! note "`jq` as an alternative to `python3`"
 
@@ -33,7 +33,8 @@ before proceeding.
 ## Cluster Access
 
 You need `oc` authenticated as **cluster-admin** on an OpenShift 4.16+
-cluster with RHOAI 3.4 installed. Verify:
+cluster. Module 0 installs RHOAI and dependencies if your cluster does
+not have them yet. Verify:
 
 ```bash
 oc whoami
@@ -48,9 +49,6 @@ If you are not authenticated, log in:
 ```bash
 oc login --server=https://<api-server>:6443 -u <user>
 ```
-
-If your cluster does not have RHOAI and Service Mesh 3 yet, use the
-`deploy/base/` kustomize overlay to install them before starting.
 
 ---
 
@@ -78,11 +76,11 @@ context pointing to your workshop cluster.
 ## Model Endpoint
 
 You need an OpenAI-compatible model endpoint that supports tool calling.
-Module 0 covers this in detail -- you can use a remote API (such as
+Module 1 covers this in detail -- you can use a remote API (such as
 OpenAI, a hosted vLLM instance, or any compatible provider) or deploy a
 local model if your cluster has GPU nodes. Have this ready before
-starting Module 7.
+starting Module 8.
 
 ---
 
-**Next**: [Module 0 -- Model Endpoint](../00-model-endpoint/README.md)
+**Next**: [Module 0 -- Cluster Prerequisites](../00-cluster-prerequisites/README.md)
