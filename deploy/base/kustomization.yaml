@@ -10,8 +10,10 @@ resources:
   - operators/rhoai-subscription.yaml
   - operators/nfd-operator.yaml
   - operators/gpu-operator.yaml
-  - operators/authorino-operator.yaml
   - operators/web-terminal-operator.yaml
+  # Authorino is provided as a dependency by the RHCL operator (installed
+  # in Module 2). A standalone subscription here would conflict with
+  # RHCL's dependency subscription and cause OLM resolution failures.
 
   # --- Operands (CRs created by the operators above) ---
   # NOTE: These require the operator CRDs to exist first.
@@ -21,6 +23,5 @@ resources:
   #   <wait for operators to install>
   #   oc apply -k deploy/base  (second pass picks up operands)
   - operands/nfd-instance.yaml
-  - operands/authorino-instance.yaml
   - operands/datasciencecluster.yaml
   - operands/odhdashboardconfig.yaml

@@ -1,15 +1,15 @@
-# Module 4: Deploy an MCP Server
+# Module 5: Deploy an MCP Server
 
 This module deploys the OpenShift MCP server -- a read-only MCP server that
 exposes Kubernetes API operations as tools. You will encounter a known issue
 with the built-in catalog image and learn how to work around it.
 
-**Prerequisites** -- Module 3 completed. The mcp-ecosystem namespace, ServiceAccount, and ConfigMap exist.
+**Prerequisites** -- Module 4 completed. The mcp-ecosystem namespace, ServiceAccount, and ConfigMap exist.
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/04-mcp-server
+> cd deploy/workshop/05-mcp-server
 > ```
 
 ---

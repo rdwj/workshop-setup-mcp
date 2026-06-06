@@ -1,4 +1,4 @@
-# Module 0: Model Endpoint
+# Module 1: Model Endpoint
 
 Before starting the MCP Ecosystem modules, you need an OpenAI-compatible
 model endpoint that supports tool calling. You will use this endpoint
@@ -115,4 +115,4 @@ except (json.JSONDecodeError, KeyError):
 
 You should see a list of model IDs. Record your `MODEL_ENDPOINT`,
 `MODEL_NAME`, and `OPENAI_API_KEY` (if applicable) -- you will use them
-in Module 7 when configuring the agent.
+in Module 8 when configuring the agent.
