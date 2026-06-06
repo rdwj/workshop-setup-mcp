@@ -21,6 +21,7 @@ docs_dir: deploy/workshop
 nav:
   - Home: README.md
   - Modules:
+    - "Prerequisites": prerequisites/README.md
     - "0. Cluster Prerequisites": 00-cluster-prerequisites/README.md
     - "1. Model Endpoint": 01-model-endpoint/README.md
     - "2. Gateway Infrastructure": 02-gateway-infrastructure/README.md

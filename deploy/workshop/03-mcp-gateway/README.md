@@ -23,28 +23,32 @@ MCPServerRegistration, and MCPVirtualServer CRDs:
 oc apply -f mcp-gateway-subscription.yaml
 ```
 
-Wait for the CSV to reach `Succeeded`:
+Wait for the CSV to reach `Succeeded`. This can take 2--3 minutes:
 
 ```bash
 oc get csv -n openshift-operators | grep mcp-gateway
 ```
 
-This installs `mcp-gateway.v0.6.0`. It can take 2-3 minutes.
+This installs `mcp-gateway.v0.6.0`.
 
-> **Note:** If the CSV doesn't appear after 3 minutes, check for pending
-> InstallPlans that need approval:
->
-> ```bash
-> oc get installplan -n openshift-operators
-> ```
->
-> If you see any with `APPROVED=false`, approve them:
->
-> ```bash
-> for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
->   oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
-> done
-> ```
+!!! warning "InstallPlan May Require Approval"
+
+    On some clusters, OLM bundles the install plan with dependencies from
+    other operators and sets it to Manual approval -- even when the
+    subscription specifies Automatic. If the CSV doesn't appear after
+    2--3 minutes, check for pending InstallPlans:
+
+    ```bash
+    oc get installplan -n openshift-operators
+    ```
+
+    If you see any with `APPROVED=false`, approve them:
+
+    ```bash
+    for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+      oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+    done
+    ```
 
 ## Step 2: Install the MCP Lifecycle Operator
 
@@ -144,14 +148,21 @@ oc apply -f mcp-gateway-extension.yaml
 After the MCPGatewayExtension is created, patch it to set the
 correct `privateHost`:
 
-First, find the actual Istio gateway service name:
+First, find the Istio gateway service name:
 
 ```bash
-oc get svc -n mcp-system | grep istio
+oc get svc -n mcp-system
 ```
 
-You should see a service like `mcp-gateway-data-science-gateway-class`. Set
-it as the privateHost:
+!!! note "Service Naming Convention"
+
+    The Istio gateway service is named `mcp-gateway-<gatewayclass-name>`,
+    not `*-istio`. On OpenShift with RHOAI, the GatewayClass is
+    `data-science-gateway-class`, so the service will be
+    `mcp-gateway-data-science-gateway-class`. Look for the service that is
+    **not** the plain `mcp-gateway` broker service.
+
+Set the Istio gateway service as the privateHost:
 
 ```bash
 oc patch mcpgatewayextension mcp-gateway -n mcp-system --type=merge -p '
