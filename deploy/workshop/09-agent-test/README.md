@@ -1,133 +1,56 @@
-# Module 8: Agent Testing Through the Gateway
+# Module 9: Agent Testing Through the Gateway
 
-Connect a live agent to the MCP Gateway and observe how identity-based tool
-filtering changes what the agent can do.
-
-You will reconfigure the agent deployed in Module 7 to route tool calls
-through the authenticated MCP Gateway and see the difference between admin
-and user-level access.
+Observe how identity-based tool filtering changes what the agent can do.
+The agent deployed in Module 8 is already connected to the MCP Gateway
+with admin credentials. You will verify admin access, then switch to
+user-level credentials to see the tool set shrink.
 
 **Time:** 15--20 minutes
 
 **Prerequisites:**
-- Module 7 complete (agent, gateway proxy, and chat UI deployed)
-- Module 6 complete (Keycloak + AuthPolicy deployed)
+- Module 8 complete (agent, gateway proxy, and chat UI deployed with admin credentials)
+- Module 7 complete (Keycloak + AuthPolicy deployed)
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/08-agent-test
+> cd deploy/workshop/09-agent-test
 > ```
 
 ## Variables
 
 ```bash
 CTX="<your-kube-context>"
+NS="workshop-setup-mcp"
 CLUSTER_DOMAIN=$(oc get ingress.config cluster --context="$CTX" -o jsonpath='{.spec.domain}')
 KEYCLOAK_URL="https://$(oc get route keycloak -n keycloak --context="$CTX" -o jsonpath='{.spec.host}')"
 ```
 
 ---
 
-## Step 1: Verify the Pre-deployed Components
+## Step 1: Verify Admin Access
 
-The workshop cluster has an agent stack already running. Confirm the
-components are up:
+The agent was deployed in Module 8 with admin credentials (`mcp-gateway`
+client, member of `mcp-admins`). Confirm the agent is connected to the
+gateway with 14 tools:
 
 ```bash
-oc get pods -n workshop-setup-mcp --context="$CTX"
+oc logs deployment/workshop-setup-mcp -n "$NS" --context="$CTX" | grep "tool(s)"
 ```
+
+You should see `14 tool(s)` -- the full admin tool set.
 
 Get the chat UI URL:
 
 ```bash
-UI_URL="https://$(oc get route workshop-setup-mcp-ui -n workshop-setup-mcp \
+UI_URL="https://$(oc get route workshop-setup-mcp-ui -n "$NS" \
   --context="$CTX" -o jsonpath='{.spec.host}')"
 echo "Chat UI: ${UI_URL}"
 ```
 
-Open the URL in your browser. The agent is currently connected directly to the
-MCP server -- no gateway, no auth.
+Open the URL in your browser.
 
-## Step 2: Test Direct Mode (No Gateway)
-
-In the chat UI, ask:
-
-> List all projects in this cluster
-
-The agent should call the `projects_list` tool and return results. This works
-because the agent talks directly to the MCP server using the server's
-ServiceAccount token.
-
-Now ask:
-
-> What nodes are in this cluster and what's their CPU usage?
-
-This should also work -- the agent has access to all 14 tools in direct mode.
-
-## Step 3: Reconfigure the Agent for Gateway Access (Admin)
-
-Patch the agent's ConfigMap to route through the MCP Gateway with admin-level
-Keycloak credentials.
-
-First, get the `mcp-gateway` client secret from Keycloak:
-
-```bash
-ADMIN_USER=$(oc get secret keycloak-initial-admin -n keycloak --context="$CTX" \
-  -o jsonpath='{.data.username}' | base64 -d)
-ADMIN_PASS=$(oc get secret keycloak-initial-admin -n keycloak --context="$CTX" \
-  -o jsonpath='{.data.password}' | base64 -d)
-
-ADMIN_TOKEN=$(curl -sk -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
-  -d "client_id=admin-cli" \
-  -d "username=${ADMIN_USER}" \
-  -d "password=${ADMIN_PASS}" \
-  -d "grant_type=password" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-
-CLIENT_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=mcp-gateway" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
-
-CLIENT_SECRET=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${CLIENT_UUID}/client-secret" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
-
-echo "Client secret: ${CLIENT_SECRET}"
-```
-
-The agent was deployed in Module 7 with admin credentials (`mcp-gateway`
-client, member of `mcp-admins`). If you followed Module 7, the agent is
-already configured for admin access and you can skip to Step 4.
-
-If you need to reconfigure the agent for admin access (e.g., after
-switching to user credentials in Step 6), re-run the Module 7 helm
-install with the admin client secret:
-
-```bash
-MCP_GATEWAY_URL="http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp"
-NS="workshop-setup-mcp"
-
-AGENT_IMAGE=$(oc get is workshop-setup-mcp -n "$NS" --context="$CTX" \
-  -o jsonpath='{.status.dockerImageRepository}')
-
-helm upgrade workshop-setup-mcp ../../demo/agent/chart/ \
-  -n "$NS" --kube-context="$CTX" \
-  --set image.repository="$AGENT_IMAGE" \
-  --set image.tag=latest \
-  --set config.MODEL_ENDPOINT="${MODEL_ENDPOINT}" \
-  --set config.MODEL_NAME="${MODEL_NAME}" \
-  --set config.OPENAI_API_KEY="${OPENAI_API_KEY:-not-required}" \
-  --set config.MCP_GATEWAY_URL="${MCP_GATEWAY_URL}" \
-  --set config.KEYCLOAK_URL="${KEYCLOAK_URL}" \
-  --set config.KEYCLOAK_REALM=mcp-gateway \
-  --set config.KEYCLOAK_CLIENT_ID=mcp-gateway \
-  --set config.KEYCLOAK_CLIENT_SECRET="${CLIENT_SECRET}" \
-  --set route.enabled=false \
-  --wait
-```
-
-## Step 4: Test Admin Access Through the Gateway
+## Step 2: Test Admin Access Through the Gateway
 
 Refresh the chat UI and ask:
 
@@ -143,7 +66,7 @@ Now try something that requires cluster-level tools:
 
 This should work -- `nodes_top` is in the admin tool set.
 
-## Step 5: Observe Write Restrictions
+## Step 3: Observe Write Restrictions
 
 The MCP server backing this gateway only provides read-only Kubernetes tools.
 Ask the agent:
@@ -154,10 +77,26 @@ The model should explain that it doesn't have a tool for creating projects.
 This is by design -- the OpenShift MCP server exposes `get` and `list`
 operations, not `create` or `delete`.
 
-## Step 6: Switch to User-Level Access
+## Step 4: Switch to User-Level Access
 
-Create a `mcp-user-agent` client in Keycloak that belongs to `mcp-users`
-instead of `mcp-admins`:
+Get a Keycloak admin token, then create a `mcp-user-agent` client that
+belongs to `mcp-users` instead of `mcp-admins`:
+
+```bash
+ADMIN_USER=$(oc get secret keycloak-initial-admin -n keycloak --context="$CTX" \
+  -o jsonpath='{.data.username}' | base64 -d)
+ADMIN_PASS=$(oc get secret keycloak-initial-admin -n keycloak --context="$CTX" \
+  -o jsonpath='{.data.password}' | base64 -d)
+
+ADMIN_TOKEN=$(curl -sk -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+  -d "client_id=admin-cli" \
+  -d "username=${ADMIN_USER}" \
+  -d "password=${ADMIN_PASS}" \
+  -d "grant_type=password" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+```
+
+Create the user-level client:
 
 ```bash
 # Create the client
@@ -222,7 +161,7 @@ helm upgrade workshop-setup-mcp ../../demo/agent/chart/ \
   --wait
 ```
 
-## Step 7: Observe Reduced Tool Access
+## Step 5: Observe Reduced Tool Access
 
 Refresh the chat UI and ask:
 

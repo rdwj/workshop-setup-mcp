@@ -1,13 +1,13 @@
-# Module 3: Prepare MCP Server Prerequisites
+# Module 4: Prepare MCP Server Prerequisites
 
 This module creates the Kubernetes resources that MCP servers need before they can be deployed. You will create a ServiceAccount, ClusterRoleBinding, and ConfigMap for the OpenShift MCP server.
 
-**Prerequisites** -- Module 2 completed. The MCP Gateway namespace exists.
+**Prerequisites** -- Module 3 completed. The MCP Gateway namespace exists.
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/03-mcp-server-prerequisites
+> cd deploy/workshop/04-mcp-server-prerequisites
 > ```
 
 ---
@@ -75,5 +75,5 @@ Review the ConfigMap settings. Key configuration values:
 
 ---
 
-**Next**: [Module 4 -- Deploy the MCP Server](../04-mcp-server/README.md)
+**Next**: [Module 5 -- Deploy the MCP Server](../05-mcp-server/README.md)
 

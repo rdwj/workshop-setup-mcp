@@ -1,4 +1,4 @@
-# Module 1: Gateway Infrastructure
+# Module 2: Gateway Infrastructure
 
 This module installs the foundational Gateway API infrastructure that the MCP
 Gateway depends on. By the end you will have a working GatewayClass and a
@@ -11,7 +11,7 @@ Service Mesh 3 already present on the cluster.
 > module directory. Start by changing into it:
 >
 > ```bash
-> cd deploy/workshop/01-gateway-infrastructure
+> cd deploy/workshop/02-gateway-infrastructure
 > ```
 >
 > If you are working with multiple clusters, set your context once and
@@ -88,22 +88,21 @@ Look for the `Ready` condition with `status: "True"`.
 !!! important "Kuadrant MissingDependency Race Condition"
 
     You may see the Kuadrant CR stuck with a `MissingDependency`
-    condition. This happens when the Kuadrant operator starts reconciling before
-    the RHCL CRDs are fully registered in the API server. This is normal
-    in multi-operator deployments where dependencies come up
-    asynchronously. Restarting the operator forces a fresh reconciliation
-    loop after the API server has fully registered all CRDs.
+    condition. This is less likely if you completed Module 0 (cluster
+    prerequisites) before this module, but can still happen if the RHCL
+    CRDs are slow to register in the API server. Restarting the operator
+    forces a fresh reconciliation loop.
 
 Restart the Kuadrant operator pod to force a re-check:
 
 ```bash
-oc delete pod -n openshift-operators -l app.kubernetes.io/name=kuadrant-operator
+oc delete pod -n openshift-operators -l app=kuadrant,control-plane=controller-manager
 ```
 
 Wait for the new pod to come up, then re-check the Kuadrant status:
 
 ```bash
-oc get pod -n openshift-operators -l app.kubernetes.io/name=kuadrant-operator
+oc get pod -n openshift-operators -l app=kuadrant,control-plane=controller-manager
 oc get kuadrant kuadrant -n kuadrant-system -o jsonpath='{.status.conditions}' | python3 -m json.tool
 ```
 
@@ -118,7 +117,7 @@ oc get gatewayclasses
 ```
 
 You should see at least one GatewayClass, typically named
-`data-science-gateway-class`. Record this name -- you will need it in Module 2.
+`data-science-gateway-class`. Record this name -- you will need it in Module 3.
 
 ---
 

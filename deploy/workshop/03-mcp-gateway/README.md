@@ -1,15 +1,15 @@
-# Module 2: MCP Gateway
+# Module 3: MCP Gateway
 
 This module installs the MCP Gateway operator and the MCP Lifecycle Operator,
 then creates a dedicated Gateway with the MCP broker extension. By the end you
 will have a working MCP Gateway ready to accept server registrations.
 
-**Prerequisites** -- Module 1 completed. A GatewayClass exists in the cluster.
+**Prerequisites** -- Module 2 completed. A GatewayClass exists in the cluster.
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/02-mcp-gateway
+> cd deploy/workshop/03-mcp-gateway
 > ```
 
 ---

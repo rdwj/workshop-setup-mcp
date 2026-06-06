@@ -1,4 +1,4 @@
-# Module 6: Identity and Authentication
+# Module 7: Identity and Authentication
 
 Set up Keycloak-based JWT authentication for the MCP Gateway with
 wristband-signed tokens -- short-lived signed JWTs that the broker trusts for
@@ -13,13 +13,13 @@ After this module, the gateway will:
 **Time:** 30--45 minutes
 
 **Prerequisites:**
-- Modules 1--5 complete (gateway infrastructure, MCP Gateway, MCP server prerequisites, MCP server, registration)
+- Modules 2--6 complete (gateway infrastructure, MCP Gateway, MCP server prerequisites, MCP server, registration)
 - `openssl` available on your workstation
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/06-identity-auth
+> cd deploy/workshop/07-identity-auth
 > ```
 
 > **Note:** The RHBK operator may inherit Manual InstallPlan approval from
@@ -56,7 +56,7 @@ Wait for the CSV to succeed:
 oc get csv -n keycloak --context="$CTX" -w
 ```
 
-You should see `rhbk-operator.v24.0.7` reach `Succeeded`. If the InstallPlan
+You should see `rhbk-operator.v24.*` reach `Succeeded`. If the InstallPlan
 is pending approval:
 
 ```bash

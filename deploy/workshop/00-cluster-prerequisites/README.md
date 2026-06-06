@@ -1,0 +1,130 @@
+# Module 0: Cluster Prerequisites
+
+Install the platform operators and operands that the workshop depends on.
+By the end of this module your cluster will have RHOAI 3.4, Service Mesh 3,
+cert-manager, and the supporting operators ready for the MCP Gateway stack.
+
+**Time:** 15--20 minutes (plus 5--10 minutes for operators to install)
+
+## Can I Skip This?
+
+If your cluster already has these prerequisites, skip to
+[Module 1](../01-model-endpoint/README.md). Check with:
+
+```bash
+# RHOAI operator installed?
+oc get csv -A | grep rhods-operator
+
+# Service Mesh 3 installed? (comes with RHOAI)
+oc get csv -A | grep servicemeshoperator3
+
+# GatewayClass exists? (created by Service Mesh 3)
+oc get gatewayclasses
+```
+
+If all three commands return results, skip this module.
+
+---
+
+## Variables
+
+Set your cluster context once and use it throughout the workshop:
+
+```bash
+export CTX="<your-kube-context>"
+```
+
+## Step 1: First Pass -- Operators
+
+The `deploy/base/` directory contains a Kustomize overlay that creates
+namespaces and operator subscriptions. The first pass will partially fail
+on operand CRs because the CRDs don't exist yet -- this is expected:
+
+```bash
+oc apply -k deploy/base --context="$CTX"
+```
+
+You will see errors like `no matches for kind "DataScienceCluster"` --
+these are normal. The operator subscriptions are being processed.
+
+## Step 2: Wait for Operators
+
+Monitor the operator installations until all show `Succeeded`:
+
+```bash
+oc get csv -A --context="$CTX" | grep -E 'Succeeded|Installing'
+```
+
+Look for these key operators:
+- `rhods-operator` (Red Hat OpenShift AI)
+- `servicemeshoperator3` (Red Hat OpenShift Service Mesh 3)
+- `cert-manager-operator`
+
+This typically takes 3--5 minutes. If an operator stays in `Installing`
+for more than 5 minutes, check for pending InstallPlans:
+
+```bash
+oc get installplan -A --context="$CTX" | grep -v 'true'
+```
+
+Approve any pending plans:
+
+```bash
+for plan in $(oc get installplan -n openshift-operators --context="$CTX" \
+  -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+  oc patch installplan "$plan" -n openshift-operators --context="$CTX" \
+    --type=merge -p '{"spec":{"approved":true}}'
+done
+```
+
+## Step 3: Second Pass -- Operands
+
+Once all operators show `Succeeded`, run the overlay again. This time the
+operand CRs (DataScienceCluster, NodeFeatureDiscovery, etc.) will be
+created successfully:
+
+```bash
+oc apply -k deploy/base --context="$CTX"
+```
+
+!!! note "OdhDashboardConfig"
+
+    You may see an error for `OdhDashboardConfig` if the
+    `redhat-ods-applications` namespace hasn't been created yet by RHOAI.
+    This is cosmetic and does not affect the workshop. It will succeed on
+    a subsequent run after RHOAI finishes initializing.
+
+## Step 4: Verify
+
+Confirm the key components are ready:
+
+```bash
+# RHOAI operator
+oc get csv -n redhat-ods-operator --context="$CTX" | grep rhods
+
+# Service Mesh 3
+oc get csv -n openshift-operators --context="$CTX" | grep servicemeshoperator3
+
+# GatewayClass (created by Service Mesh 3)
+oc get gatewayclasses --context="$CTX"
+```
+
+You should see a GatewayClass named `data-science-gateway-class` with
+`ACCEPTED=True`.
+
+---
+
+## What You Installed
+
+| Component | Purpose |
+|-----------|---------|
+| RHOAI 3.4 | AI platform (brings Service Mesh 3 as a dependency) |
+| Service Mesh 3 | Provides Istio and GatewayClass for the MCP Gateway |
+| cert-manager | TLS certificate management |
+| NFD Operator | Node Feature Discovery (for GPU detection) |
+| GPU Operator | NVIDIA GPU support (optional, for local model serving) |
+| Web Terminal | In-browser terminal for cluster access |
+
+---
+
+**Next**: [Module 1 -- Model Endpoint](../01-model-endpoint/README.md)

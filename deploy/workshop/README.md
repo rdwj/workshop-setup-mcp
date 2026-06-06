@@ -13,14 +13,13 @@ identity-driven access control, and agent integration.
 
 ## Prerequisites
 
-- OpenShift 4.16+ cluster with RHOAI 3.4 installed (use `deploy/base`
-  kustomize overlay if starting from scratch)
+- OpenShift 4.16+ cluster (Module 0 installs RHOAI and dependencies)
 - `oc` CLI authenticated as cluster-admin
-- `openssl` available on your workstation (for key generation in Module 6)
+- `openssl` available on your workstation (for key generation in Module 7)
 - `python3` available on your workstation (for JSON parsing in test commands; `jq` works as an alternative)
-- `helm` available on your workstation (for optional Module 8)
+- `helm` available on your workstation (for Modules 8--9)
 - A `MODEL_ENDPOINT` URL for an OpenAI-compatible model that supports tool
-  calling (see Module 0)
+  calling (see Module 1)
 
 ## Architecture
 
@@ -48,24 +47,25 @@ controls which tools each identity can see and invoke.
 
 ## Duration
 
-Core modules (1--8): 2.5--3.5 hours
-Optional modules (9--10): 1 hour each
+Core modules (0--9): 3--4 hours
+Optional modules (10--11): 1 hour each
 
 ## Modules
 
 | Module | Directory | Description | Time |
 |--------|-----------|-------------|------|
-| 0 | `00-model-endpoint/` | Set up a model endpoint for agent testing | 10 min |
-| 1 | `01-gateway-infrastructure/` | Deploy Istio, Kuadrant, and the Gateway API infrastructure | 30 min |
-| 2 | `02-mcp-gateway/` | Install the MCP Gateway Operator and create the gateway with MCPGatewayExtension | 20 min |
-| 3 | `03-mcp-server-prerequisites/` | Create the ServiceAccount, ClusterRoleBinding, and ConfigMap that the MCP server requires | 10 min |
-| 4 | `04-mcp-server/` | Deploy the OpenShift MCP server from the catalog | 10 min |
-| 5 | `05-gateway-registration/` | Register the MCP server with the gateway via MCPServerRegistration and HTTPRoute | 15 min |
-| 6 | `06-identity-auth/` | Install Keycloak, configure realm/groups, generate wristband keys, apply AuthPolicy | 30--45 min |
-| 7 | `07-deploy-agent/` | Build and deploy the agent, gateway proxy, and chat UI | 15--20 min |
-| 8 | `08-agent-test/` | Reconfigure the agent to use the gateway, test admin vs user tool access | 15--20 min |
-| 9 (optional) | `09-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
-| 10 (optional) | `10-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
+| 0 | `00-cluster-prerequisites/` | Install RHOAI, Service Mesh, and platform operators | 15--20 min |
+| 1 | `01-model-endpoint/` | Set up a model endpoint for agent testing | 10 min |
+| 2 | `02-gateway-infrastructure/` | Deploy Istio, Kuadrant, and the Gateway API infrastructure | 30 min |
+| 3 | `03-mcp-gateway/` | Install the MCP Gateway Operator and create the gateway with MCPGatewayExtension | 20 min |
+| 4 | `04-mcp-server-prerequisites/` | Create the ServiceAccount, ClusterRoleBinding, and ConfigMap that the MCP server requires | 10 min |
+| 5 | `05-mcp-server/` | Deploy the OpenShift MCP server from the catalog | 10 min |
+| 6 | `06-gateway-registration/` | Register the MCP server with the gateway via MCPServerRegistration and HTTPRoute | 15 min |
+| 7 | `07-identity-auth/` | Install Keycloak, configure realm/groups, generate wristband keys, apply AuthPolicy | 30--45 min |
+| 8 | `08-deploy-agent/` | Build and deploy the agent, gateway proxy, and chat UI | 15--20 min |
+| 9 | `09-agent-test/` | Test admin vs user tool access through the gateway | 15--20 min |
+| 10 (optional) | `10-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
+| 11 (optional) | `11-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
 
 ## Real-World Deployment Patterns
 
@@ -83,18 +83,18 @@ knowledge.
   ext_proc routing. This applies to agents, the Playground ConfigMap, and
   any MCP client connecting to the gateway.
 
-**Module 3 -- MCP Server Prerequisites:**
+**Module 4 -- MCP Server Prerequisites:**
 - The lifecycle operator intentionally does not create security-sensitive
   resources (ServiceAccount, ClusterRoleBinding, ConfigMap) to prevent
   privilege escalation. The platform engineer provisions these before
   deployment. See [Layered Authorization Model](mcp-layered-authorization.md).
 
-**Module 4 -- MCP Server Deployment:**
+**Module 5 -- MCP Server Deployment:**
 - The built-in catalog image (`registry.redhat.io/.../openshift-mcp-server-rhel9:0.2`)
   does not exist. You must patch to the working image from Quay.
 - The lifecycle operator OOMKills at the default 128Mi limit. Patch to 512Mi.
 
-**Module 5 -- Gateway Registration:**
+**Module 6 -- Gateway Registration:**
 - The broker hardcodes the Istio service name as `<gateway>-istio`. If your
   GatewayClass has a different name, set `privateHost` on the
   MCPGatewayExtension.
@@ -103,7 +103,7 @@ knowledge.
 - `prefix` on MCPServerRegistration is immutable once set. Delete and
   recreate if you need to change it.
 
-**Module 6 -- Identity/Auth:**
+**Module 7 -- Identity/Auth:**
 - RHBK operator only supports OwnNamespace install mode.
 - Tokens must include `scope=openid groups` or group-based routing fails
   silently.
@@ -112,7 +112,7 @@ knowledge.
 - Wristband `allowed-tools` must use unprefixed tool names keyed by
   MCPServerRegistration name. Including the prefix causes double-prefixing.
 
-**Module 9 -- External Model (if attempted):**
+**Module 11 -- External Model (if attempted):**
 - The `gen-ai-aa-mcp-servers` ConfigMap must use the Istio gateway service
   URL, not the broker service URL. The Playground forwards auth tokens
   correctly — earlier failures were caused by using the wrong service
@@ -122,24 +122,9 @@ Full details: [Deployment Findings](https://github.com/rdwj/workshop-setup/blob/
 
 ## Cluster Automation
 
-The `deploy/base/` directory contains a Kustomize overlay that installs
-platform prerequisites (RHOAI, NFD, GPU operator, Authorino, Web Terminal).
-For instructor-led workshops, apply this before the session:
-
-```bash
-# First pass: creates namespaces and operator subscriptions
-oc apply -k deploy/base --context="$CTX"
-
-# Wait for operator CRDs to become available.
-# The first pass will fail on operand CRs (DataScienceCluster, etc.)
-# because the CRDs don't exist yet — this is expected.
-# Monitor progress with:
-oc get csv -A --context="$CTX" | grep -E 'Succeeded|Installing'
-
-# Once all operators show "Succeeded", run the second pass:
-# (creates operand CRs that depend on the operator CRDs)
-oc apply -k deploy/base --context="$CTX"
-```
+Module 0 walks students through installing platform prerequisites using
+`deploy/base/`. For instructor-led workshops, the instructor can apply
+this before the session so students can skip Module 0.
 
 For repeatable multi-cluster provisioning, point an ArgoCD Application at
 `deploy/base/` (or a site-specific overlay under `deploy/overlays/`).
