@@ -13,14 +13,10 @@ identity-driven access control, and agent integration.
 
 ## Prerequisites
 
-- OpenShift 4.16+ cluster with RHOAI 3.4 installed (use `deploy/base`
-  kustomize overlay if starting from scratch)
-- `oc` CLI authenticated as cluster-admin
-- `openssl` available on your workstation (for key generation in Module 6)
-- `python3` available on your workstation (for JSON parsing in test commands; `jq` works as an alternative)
-- `helm` available on your workstation (for optional Module 8)
-- A `MODEL_ENDPOINT` URL for an OpenAI-compatible model that supports tool
-  calling (see Module 0)
+Before starting, verify your workstation tools (`oc`, `helm`, `openssl`,
+`python3`) and cluster access. See the
+[Prerequisites checklist](prerequisites/README.md) for verification
+commands and download links.
 
 ## Architecture
 

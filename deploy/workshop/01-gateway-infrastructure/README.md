@@ -33,30 +33,32 @@ both the MaaS and MCP gateways use. Install it as a Subscription in
 oc apply -f rhcl-subscription.yaml
 ```
 
-The subscription uses `installPlanApproval: Automatic`, so OLM will install the
-operator without manual approval. Wait for the CSV to reach `Succeeded`:
+Wait for the CSV to reach `Succeeded`. This can take 2--3 minutes:
 
 ```bash
 oc get csv -n openshift-operators | grep rhcl
 ```
 
 You should see something like `rhcl-operator.v1.3.4` with phase `Succeeded`.
-This can take 2-3 minutes.
 
-> **Note:** If the CSV doesn't appear after 3 minutes, check for pending
-> InstallPlans that need approval:
->
-> ```bash
-> oc get installplan -n openshift-operators
-> ```
->
-> If you see any with `APPROVED=false`, approve them:
->
-> ```bash
-> for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
->   oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
-> done
-> ```
+!!! warning "InstallPlan May Require Approval"
+
+    On some clusters, OLM bundles the install plan with dependencies from
+    other operators and sets it to Manual approval -- even when the
+    subscription specifies Automatic. If the CSV doesn't appear after
+    2--3 minutes, check for pending InstallPlans:
+
+    ```bash
+    oc get installplan -n openshift-operators
+    ```
+
+    If you see any with `APPROVED=false`, approve them:
+
+    ```bash
+    for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+      oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+    done
+    ```
 
 ## Step 2: Create the Kuadrant Namespace
 

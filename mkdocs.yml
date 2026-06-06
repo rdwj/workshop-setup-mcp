@@ -21,6 +21,7 @@ docs_dir: deploy/workshop
 nav:
   - Home: README.md
   - Modules:
+    - "Prerequisites": prerequisites/README.md
     - "0. Model Endpoint": 00-model-endpoint/README.md
     - "1. Gateway Infrastructure": 01-gateway-infrastructure/README.md
     - "2. MCP Gateway": 02-mcp-gateway/README.md
