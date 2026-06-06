@@ -21,15 +21,16 @@ docs_dir: deploy/workshop
 nav:
   - Home: README.md
   - Modules:
-    - "0. Model Endpoint": 00-model-endpoint/README.md
-    - "1. Gateway Infrastructure": 01-gateway-infrastructure/README.md
-    - "2. MCP Gateway": 02-mcp-gateway/README.md
-    - "3. MCP Server Prerequisites": 03-mcp-server-prerequisites/README.md
-    - "4. Deploy MCP Server": 04-mcp-server/README.md
-    - "5. Gateway Registration": 05-gateway-registration/README.md
-    - "6. Identity & Auth": 06-identity-auth/README.md
-    - "7. Deploy Agent": 07-deploy-agent/README.md
-    - "8. Agent Testing": 08-agent-test/README.md
+    - "0. Cluster Prerequisites": 00-cluster-prerequisites/README.md
+    - "1. Model Endpoint": 01-model-endpoint/README.md
+    - "2. Gateway Infrastructure": 02-gateway-infrastructure/README.md
+    - "3. MCP Gateway": 03-mcp-gateway/README.md
+    - "4. MCP Server Prerequisites": 04-mcp-server-prerequisites/README.md
+    - "5. Deploy MCP Server": 05-mcp-server/README.md
+    - "6. Gateway Registration": 06-gateway-registration/README.md
+    - "7. Identity & Auth": 07-identity-auth/README.md
+    - "8. Deploy Agent": 08-deploy-agent/README.md
+    - "9. Agent Testing": 09-agent-test/README.md
   - Reference:
     - "Troubleshooting": troubleshooting.md
     - "Layered Authorization Model": mcp-layered-authorization.md
