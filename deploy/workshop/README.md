@@ -61,8 +61,8 @@ Optional modules (10--11): 1 hour each
 | 7 | `07-identity-auth/` | Install Keycloak, configure realm/groups, generate wristband keys, apply AuthPolicy | 30--45 min |
 | 8 | `08-deploy-agent/` | Build and deploy the agent, gateway proxy, and chat UI | 15--20 min |
 | 9 | `09-agent-test/` | Test admin vs user tool access through the gateway | 15--20 min |
-| 10 (optional) | `10-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
-| 11 (optional) | `11-external-model/` | Connect the Gen AI Studio Playground to a remote vLLM model with MCP tools | 45 min |
+| 10 (optional) | `10-playground/` | Enable the Gen AI Studio Playground with an external model and MCP tools | 45 min |
+| 11 (optional) | `11-vault/` | Add HashiCorp Vault for secret injection into MCP tool calls | 45 min |
 
 ## Real-World Deployment Patterns
 
@@ -109,7 +109,7 @@ knowledge.
 - Wristband `allowed-tools` must use unprefixed tool names keyed by
   MCPServerRegistration name. Including the prefix causes double-prefixing.
 
-**Module 11 -- External Model (if attempted):**
+**Module 10 -- Gen AI Playground (if attempted):**
 - The `gen-ai-aa-mcp-servers` ConfigMap must use the Istio gateway service
   URL, not the broker service URL. The Playground forwards auth tokens
   correctly — earlier failures were caused by using the wrong service

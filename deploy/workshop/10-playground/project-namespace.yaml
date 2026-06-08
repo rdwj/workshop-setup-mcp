@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-playground
+  labels:
+    opendatahub.io/dashboard: "true"
+    kubernetes.io/metadata.name: workshop-playground
+  annotations:
+    openshift.io/display-name: "Workshop Playground"
+    openshift.io/description: "Gen AI Playground with external model and MCP tools"
