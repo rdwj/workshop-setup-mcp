@@ -63,17 +63,18 @@ The `deploy/` directory contains Kustomize overlays that build up the full stack
 
 | Stage | Directory | Purpose |
 |-------|-----------|---------|
-| 00 | model-endpoint | LLM endpoint (vLLM on OpenShift AI) |
-| 01 | gateway-infrastructure | Kuadrant API gateway |
-| 02 | mcp-gateway | MCP Gateway broker |
-| 03 | mcp-server-prerequisites | ServiceAccount, RBAC, ConfigMap for MCP server |
-| 04 | mcp-server | MCP server deployment |
-| 05 | gateway-registration | Register MCP servers with gateway |
-| 06 | identity-auth | Keycloak realm, clients, user groups |
-| 07 | deploy-agent | Build and deploy the agent, gateway, and UI |
-| 08 | agent-test | Agent testing (admin + user configs) |
-| 09 | vault | HashiCorp Vault integration |
-| 10 | external-model | External model endpoint |
+| 00 | cluster-prerequisites | RHOAI, Service Mesh, and platform operators |
+| 01 | model-endpoint | LLM endpoint (vLLM on OpenShift AI) |
+| 02 | gateway-infrastructure | Kuadrant API gateway |
+| 03 | mcp-gateway | MCP Gateway broker |
+| 04 | mcp-server-prerequisites | ServiceAccount, RBAC, ConfigMap for MCP server |
+| 05 | mcp-server | MCP server deployment |
+| 06 | gateway-registration | Register MCP servers with gateway |
+| 07 | identity-auth | Keycloak realm, clients, user groups |
+| 08 | deploy-agent | Build and deploy the agent, gateway, and UI |
+| 09 | agent-test | Agent testing (admin + user configs) |
+| 10 | playground | Gen AI Studio Playground with external model and MCP tools |
+| 11 | vault | HashiCorp Vault integration |
 
 `deploy/base/` contains OpenShift operator subscriptions (RHOAI, NFD, Authorino, Web Terminal, GPU).
 

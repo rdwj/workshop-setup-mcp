@@ -32,6 +32,7 @@ nav:
     - "7. Identity & Auth": 07-identity-auth/README.md
     - "8. Deploy Agent": 08-deploy-agent/README.md
     - "9. Agent Testing": 09-agent-test/README.md
+    - "10. Gen AI Playground (Optional)": 10-playground/README.md
   - Reference:
     - "Troubleshooting": troubleshooting.md
     - "Layered Authorization Model": mcp-layered-authorization.md
