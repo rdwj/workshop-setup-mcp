@@ -65,3 +65,6 @@ htmlcov/
 *.tar
 site/
 .venv/
+
+# Added by ggshield
+.cache_ggshield
