@@ -47,10 +47,13 @@ logs/
 *.temp
 tmp/
 temp/
+workshop-walkthrough-notes.md
 
 # Build artifacts
 dist/
 build/
+!demo/*/build/
+!demo/*/build/buildconfig.yaml
 
 # Testing
 .coverage

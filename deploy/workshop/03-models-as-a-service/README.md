@@ -119,7 +119,7 @@ This creates two passthrough TLS routes:
 
 ## Step 5: Configure Authorino TLS
 
-MaaS uses Authorino for API authentication. Three configuration steps
+MaaS uses Authorino for API authentication. Two configuration steps
 are needed for TLS to work end-to-end. See the
 [MaaS TLS documentation](https://opendatahub-io.github.io/models-as-a-service/latest/configuration-and-management/tls-configuration/)
 for details.
@@ -134,25 +134,7 @@ oc annotate service authorino-authorino-authorization \
   --overwrite
 ```
 
-**5b.** Patch the Authorino CR to enable TLS on its gRPC listener:
-
-```bash
-oc patch authorino authorino -n kuadrant-system --context="$CTX" \
-  --type=merge --patch '{
-  "spec": {
-    "listener": {
-      "tls": {
-        "enabled": true,
-        "certSecretRef": {
-          "name": "authorino-server-cert"
-        }
-      }
-    }
-  }
-}'
-```
-
-**5c.** Configure SSL environment variables for Authorino's outbound
+**5b.** Configure SSL environment variables for Authorino's outbound
 HTTPS calls to `maas-api`:
 
 ```bash
@@ -161,11 +143,21 @@ oc -n kuadrant-system --context="$CTX" set env deployment/authorino \
   REQUESTS_CA_BUNDLE=/etc/ssl/certs/openshift-service-ca/service-ca-bundle.crt
 ```
 
-## Step 6: Enable MaaS in the DataScienceCluster
+## Step 6: Create the Database Configuration Secret
+
+The MaaS API needs a connection string to reach PostgreSQL. This secret
+must exist before the DataScienceCluster is patched in the next step,
+otherwise the MaaS component cannot become ready:
+
+```bash
+oc apply -f maas-db-config-secret.yaml --context="$CTX"
+```
+
+## Step 7: Enable MaaS in the DataScienceCluster
 
 Patch the DataScienceCluster to enable Models as a Service. The operator
-requires the `maas-default-gateway` Gateway to exist before this step
-succeeds:
+requires the `maas-default-gateway` Gateway and `maas-db-config` Secret
+to exist before this step succeeds:
 
 ```bash
 oc patch datasciencecluster default-dsc --context="$CTX" \
@@ -185,14 +177,6 @@ oc wait datasciencecluster default-dsc --context="$CTX" \
     `gateway openshift-ingress/maas-default-gateway not found`, the
     Gateway from Step 3 was not created or is in a different namespace.
     Verify with: `oc get gateway maas-default-gateway -n openshift-ingress --context="$CTX"`
-
-## Step 7: Create the Database Configuration Secret
-
-The MaaS API needs a connection string to reach PostgreSQL:
-
-```bash
-oc apply -f maas-db-config-secret.yaml --context="$CTX"
-```
 
 ## Step 8: Wait for the MaaS API
 
@@ -275,7 +259,7 @@ oc get datasciencecluster default-dsc --context="$CTX" \
 | Secret `maas-default-gateway-cert` | `openshift-ingress` | TLS certificate for `*.maas.<domain>` |
 | Route `maas-gateway` | `openshift-ingress` | External access to MaaS API |
 | Route `maas-inference-gateway` | `openshift-ingress` | External access to model inference |
-| Authorino TLS | `kuadrant-system` | TLS cert, listener config, and CA bundle for auth |
+| Authorino TLS | `kuadrant-system` | TLS cert annotation and CA bundle for auth |
 | Secret `maas-db-config` | `redhat-ods-applications` | PostgreSQL connection URL for MaaS API |
 | DSC patch | (cluster-wide) | Enables `modelsAsService: Managed` in the DataScienceCluster |
 | Deployment `maas-api` | `redhat-ods-applications` | MaaS API server (created by RHOAI operator) |
