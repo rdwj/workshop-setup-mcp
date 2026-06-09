@@ -23,16 +23,20 @@ nav:
   - Modules:
     - "Prerequisites": prerequisites/README.md
     - "0. Cluster Prerequisites": 00-cluster-prerequisites/README.md
-    - "1. Model Endpoint": 01-model-endpoint/README.md
+    - "1. GPU Compute Node (Skippable)": 01-gpu-node/README.md
     - "2. Gateway Infrastructure": 02-gateway-infrastructure/README.md
-    - "3. MCP Gateway": 03-mcp-gateway/README.md
-    - "4. MCP Server Prerequisites": 04-mcp-server-prerequisites/README.md
-    - "5. Deploy MCP Server": 05-mcp-server/README.md
-    - "6. Gateway Registration": 06-gateway-registration/README.md
-    - "7. Identity & Auth": 07-identity-auth/README.md
-    - "8. Deploy Agent": 08-deploy-agent/README.md
-    - "9. Agent Testing": 09-agent-test/README.md
-    - "10. Gen AI Playground (Optional)": 10-playground/README.md
+    - "3. Models as a Service (Skippable)": 03-models-as-a-service/README.md
+    - "4. Deploy a Model (Skippable)": 04-deploy-model/README.md
+    - "5. Model Endpoint": 05-model-endpoint/README.md
+    - "6. MCP Gateway": 06-mcp-gateway/README.md
+    - "7. MCP Server Prerequisites": 07-mcp-server-prerequisites/README.md
+    - "8. Deploy MCP Server": 08-mcp-server/README.md
+    - "9. Gateway Registration": 09-gateway-registration/README.md
+    - "10. Identity & Auth": 10-identity-auth/README.md
+    - "11. Deploy Agent": 11-deploy-agent/README.md
+    - "12. Agent Testing": 12-agent-test/README.md
+    - "13. Gen AI Playground (Optional)": 13-playground/README.md
+    - "14. Vault Integration (Optional)": 14-vault/README.md
   - Reference:
     - "Troubleshooting": troubleshooting.md
     - "Layered Authorization Model": mcp-layered-authorization.md

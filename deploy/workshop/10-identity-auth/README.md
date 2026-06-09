@@ -1,4 +1,4 @@
-# Module 7: Identity and Authentication
+# Module 10: Identity and Authentication
 
 Set up Keycloak-based JWT authentication for the MCP Gateway with
 wristband-signed tokens -- short-lived signed JWTs that the broker trusts for
@@ -13,13 +13,13 @@ After this module, the gateway will:
 **Time:** 30--45 minutes
 
 **Prerequisites:**
-- Modules 2--6 complete (gateway infrastructure, MCP Gateway, MCP server prerequisites, MCP server, registration)
+- Modules 2, 6-9 complete (gateway infrastructure, MCP Gateway, MCP server prerequisites, MCP server, registration)
 - `openssl` available on your workstation
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/07-identity-auth
+> cd deploy/workshop/10-identity-auth
 > ```
 
 > **Note:** The RHBK operator may inherit Manual InstallPlan approval from
@@ -345,6 +345,10 @@ The OPA Rego policy in the AuthPolicy maps:
 - **mcp-gateway realm** with `mcp-admins` and `mcp-users` groups, a `groups` client scope, and a service account client
 - **ECDSA wristband signing keys** -- private key in `kuadrant-system`, public key in `mcp-system`
 - **AuthPolicy** on the MCP Gateway -- JWT validation, OPA Rego group-to-tool mapping, wristband issuance, and Authorization header stripping
+
+---
+
+**Next**: [Module 11 -- Deploy the Agent Stack](../11-deploy-agent/README.md)
 
 ---
 

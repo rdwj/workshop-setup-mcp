@@ -119,7 +119,7 @@ oc get gatewayclasses
 ```
 
 You should see at least one GatewayClass, typically named
-`data-science-gateway-class`. Record this name -- you will need it in Module 3.
+`data-science-gateway-class`. Record this name -- you will need it in Module 6.
 
 ---
 
@@ -130,3 +130,7 @@ You should see at least one GatewayClass, typically named
 | RHCL Operator Subscription | openshift-operators | Provides GatewayClass via Service Mesh 3 |
 | kuadrant-system Namespace | -- | Home for the Kuadrant control plane |
 | Kuadrant CR | kuadrant-system | Activates Kuadrant (AuthPolicy, RateLimitPolicy, etc.) |
+
+---
+
+**Next**: [Module 3 -- Models as a Service](../03-models-as-a-service/README.md) (or skip to [Module 5](../05-model-endpoint/README.md) if no GPU)

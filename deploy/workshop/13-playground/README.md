@@ -1,4 +1,4 @@
-# Module 10: Gen AI Playground with MCP Tools
+# Module 13: Gen AI Playground with MCP Tools
 
 This module connects the RHOAI Gen AI Studio Playground to the MCP Gateway deployed in earlier modules. The Playground uses a LlamaStack Distribution (LSD) backend that connects to both an external model and the MCP Gateway for tool calling. Students bring their own OpenAI-compatible model endpoint.
 
@@ -6,11 +6,11 @@ This module connects the RHOAI Gen AI Studio Playground to the MCP Gateway deplo
 
 **Prerequisites:**
 
-- Modules 0--7 complete (MCP Gateway with authentication)
+- Modules 0--10 complete (MCP Gateway with authentication)
 - An OpenAI-compatible model endpoint that supports tool calling (must support `--enable-auto-tool-choice` or equivalent)
 - The model's API key (if required)
 
-> **Working directory:** `cd deploy/workshop/10-playground`
+> **Working directory:** `cd deploy/workshop/13-playground`
 
 ## Variables
 
@@ -25,7 +25,7 @@ MODEL_URL="<your-openai-compatible-endpoint>/v1"   # must end with /v1
 MODEL_NAME="<your-model-id>"                        # exact model ID from /v1/models
 API_KEY="<your-api-key>"                            # or "not-required" if no auth
 
-# Discover the Istio gateway service name (same approach as Module 3)
+# Discover the Istio gateway service name (same approach as Module 6)
 oc get svc -n mcp-system --context="$CTX"
 MCP_GATEWAY_SVC="<istio-gateway-service-name>"      # e.g. mcp-gateway-data-science-gateway-class
 ```
@@ -257,7 +257,7 @@ echo "$MCP_TOKEN"
 
 4. Paste the token in the MCP Auth dialog and click **Authorize**. You should see "Connection successful."
 
-5. Click the **View tools** icon to see the available MCP tools (should match what Module 9 showed)
+5. Click the **View tools** icon to see the available MCP tools (should match what Module 12 showed)
 
 !!! note "Token Expiry"
 
@@ -322,4 +322,4 @@ oc get configmap gen-ai-aa-mcp-servers \
 > Chat messages flow: Browser > BFF > LSD > External Model. Tool calls flow:
 > LSD > MCP Gateway > Backend MCP Server. Auth tokens entered in the Playground
 > are forwarded by the LSD to the MCP Gateway, so the same identity-based tool
-> filtering from Module 7 applies.
+> filtering from Module 10 applies.

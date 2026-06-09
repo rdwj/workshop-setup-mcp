@@ -1,0 +1,30 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: maas-gateway
+  namespace: openshift-ingress
+spec:
+  host: maas.<CLUSTER_DOMAIN>
+  to:
+    kind: Service
+    name: maas-default-gateway-data-science-gateway-class
+  port:
+    targetPort: https
+  tls:
+    termination: passthrough
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: maas-inference-gateway
+  namespace: openshift-ingress
+spec:
+  host: inference.maas.<CLUSTER_DOMAIN>
+  to:
+    kind: Service
+    name: maas-default-gateway-data-science-gateway-class
+  port:
+    targetPort: https
+  tls:
+    termination: passthrough
