@@ -1,18 +1,18 @@
-# Module 6: Gateway Registration
+# Module 9: Gateway Registration
 
 This module registers the OpenShift MCP server with the MCP Gateway so that
 its tools are accessible through a single gateway endpoint. You will also
 create VirtualMCPServer resources that expose curated tool subsets for
 different user roles.
 
-**Prerequisites** -- Modules 2-5 completed. The OpenShift MCP server pod is
+**Prerequisites** -- Modules 2, 6-8 completed. The OpenShift MCP server pod is
 running in `mcp-ecosystem`. The MCP Gateway and broker are running in
 `mcp-system`.
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/06-gateway-registration
+> cd deploy/workshop/09-gateway-registration
 > ```
 
 ---
@@ -103,7 +103,7 @@ oc exec -n mcp-system deploy/mcp-gateway -- \
 
 The gateway broker responds with plain JSON (not SSE format), so no
 `data:` prefix stripping is needed here unlike the direct server test in
-Module 5. This runs curl from inside the cluster against the Istio gateway service,
+Module 8. This runs curl from inside the cluster against the Istio gateway service,
 with a `Host` header matching the HTTPRoute. The response should include
 `serverInfo` from the "Kuadrant MCP Gateway" confirming the broker is
 serving registered tools.
@@ -157,7 +157,7 @@ oc get mcpvirtualservers -n mcp-system
 ```
 
 These MCPVirtualServers are referenced later in AuthPolicy configurations
-(Module 7) to route users to different tool subsets based on their identity.
+(Module 10) to route users to different tool subsets based on their identity.
 
 ---
 
@@ -170,3 +170,7 @@ These MCPVirtualServers are referenced later in AuthPolicy configurations
 | MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: openshift_) |
 | MCPVirtualServer (admin-tools) | mcp-system | Full 14-tool set for administrators |
 | MCPVirtualServer (user-tools) | mcp-system | 8-tool read-only subset for developers |
+
+---
+
+**Next**: [Module 10 -- Identity and Authentication](../10-identity-auth/README.md)

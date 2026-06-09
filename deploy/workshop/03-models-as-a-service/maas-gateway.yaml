@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: maas-default-gateway
+  namespace: openshift-ingress
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: maas-default-gateway-cert
+spec:
+  gatewayClassName: data-science-gateway-class
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.maas.<CLUSTER_DOMAIN>"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: maas-default-gateway-cert
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All

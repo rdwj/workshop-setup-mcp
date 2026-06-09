@@ -9,7 +9,7 @@ cert-manager, and the supporting operators ready for the MCP Gateway stack.
 ## Can I Skip This?
 
 If your cluster already has these prerequisites, skip to
-[Module 1](../01-model-endpoint/README.md). Check with:
+[Module 1](../01-gpu-node/README.md). Check with:
 
 ```bash
 # RHOAI operator installed?
@@ -127,4 +127,4 @@ You should see a GatewayClass named `data-science-gateway-class` with
 
 ---
 
-**Next**: [Module 1 -- Model Endpoint](../01-model-endpoint/README.md)
+**Next**: [Module 1 -- Add a GPU Compute Node](../01-gpu-node/README.md) (or skip to [Module 2](../02-gateway-infrastructure/README.md) if no GPU)

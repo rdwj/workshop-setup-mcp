@@ -1,20 +1,20 @@
-# Module 9: Agent Testing Through the Gateway
+# Module 12: Agent Testing Through the Gateway
 
 Observe how identity-based tool filtering changes what the agent can do.
-The agent deployed in Module 8 is already connected to the MCP Gateway
+The agent deployed in Module 11 is already connected to the MCP Gateway
 with admin credentials. You will verify admin access, then switch to
 user-level credentials to see the tool set shrink.
 
 **Time:** 15--20 minutes
 
 **Prerequisites:**
-- Module 8 complete (agent, gateway proxy, and chat UI deployed with admin credentials)
-- Module 7 complete (Keycloak + AuthPolicy deployed)
+- Module 11 complete (agent, gateway proxy, and chat UI deployed with admin credentials)
+- Module 10 complete (Keycloak + AuthPolicy deployed)
 
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/09-agent-test
+> cd deploy/workshop/12-agent-test
 > ```
 
 ## Variables
@@ -30,7 +30,7 @@ KEYCLOAK_URL="https://$(oc get route keycloak -n keycloak --context="$CTX" -o js
 
 ## Step 1: Verify Admin Access
 
-The agent was deployed in Module 8 with admin credentials (`mcp-gateway`
+The agent was deployed in Module 11 with admin credentials (`mcp-gateway`
 client, member of `mcp-admins`). Confirm the agent is connected to the
 gateway with 14 tools:
 
@@ -216,3 +216,7 @@ allows each component to enforce its own scope of responsibility.
 
 - **mcp-user-agent Keycloak client** -- a second service account in the `mcp-users` group for demonstrating reduced tool access
 - **Agent (user config)** -- switched the agent to user-level credentials via helm upgrade to observe tool filtering in action
+
+---
+
+**Next**: [Module 13 -- Gen AI Playground](../13-playground/README.md)

@@ -1,4 +1,4 @@
-# Module 3: MCP Gateway
+# Module 6: MCP Gateway
 
 This module installs the MCP Gateway operator and the MCP Lifecycle Operator,
 then creates a dedicated Gateway with the MCP broker extension. By the end you
@@ -9,7 +9,7 @@ will have a working MCP Gateway ready to accept server registrations.
 > **Working directory:**
 >
 > ```bash
-> cd deploy/workshop/03-mcp-gateway
+> cd deploy/workshop/06-mcp-gateway
 > ```
 
 ---
@@ -213,3 +213,7 @@ gateway (`mcp-gateway-data-science-gateway-class-*`).
 > `mcp-gateway-data-science-gateway-class`). Always give MCP clients the Istio
 > gateway service URL — not the broker. The broker handles `tools/list` from
 > cache but `tools/call` only works through the Istio gateway's ext_proc routing.
+
+---
+
+**Next**: [Module 7 -- MCP Server Prerequisites](../07-mcp-server-prerequisites/README.md)

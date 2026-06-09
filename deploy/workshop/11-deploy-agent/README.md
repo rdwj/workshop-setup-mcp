@@ -1,4 +1,4 @@
-# Module 8: Deploy the Agent Stack
+# Module 11: Deploy the Agent Stack
 
 Build and deploy the three-component demo stack: an AI agent that calls
 MCP tools, a gateway proxy that handles auth and routing, and a chat UI.
@@ -12,8 +12,8 @@ Browser --> UI (port 3000) --> Gateway (port 8080) --> Agent (port 8080) --> MCP
 **Time:** 15--20 minutes
 
 **Prerequisites:**
-- Modules 2--7 complete (MCP Gateway, MCP server, Keycloak + AuthPolicy)
-- `MODEL_ENDPOINT`, `MODEL_NAME`, and `OPENAI_API_KEY` from Module 1
+- Modules 2, 5-10 complete (MCP Gateway, MCP server, Keycloak + AuthPolicy, and Model Endpoint)
+- `MODEL_ENDPOINT`, `MODEL_NAME`, and `OPENAI_API_KEY` from Module 5
 - `helm` CLI installed
 
 ## Variables
@@ -250,4 +250,4 @@ the OpenShift MCP server.
 
 ---
 
-**Next**: [Module 9 -- Agent Testing](../09-agent-test/README.md)
+**Next**: [Module 12 -- Agent Testing](../12-agent-test/README.md)
