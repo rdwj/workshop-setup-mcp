@@ -1,6 +1,9 @@
 # Module 1: Add a GPU Compute Node
 
-This module provisions a dedicated GPU worker node on AWS and configures OpenShift AI to schedule GPU workloads. You will create a MachineSet for NVIDIA GPU instances, verify the node joins the cluster, and create a HardwareProfile for RHOAI workbenches.
+Provision a GPU worker node on AWS and install the NVIDIA GPU Operator
+for on-cluster model serving. The module creates the MachineSet first
+so AWS starts provisioning immediately, then installs the GPU Operator
+and NFD while the node provisions.
 
 **Time:** 15--20 minutes (plus 10--15 minutes for node provisioning)
 
@@ -12,7 +15,7 @@ This module provisions a dedicated GPU worker node on AWS and configures OpenShi
 
 **Prerequisites:**
 
-- Module 0 completed (GPU Operator and NFD installed)
+- Module 0 completed
 - AWS-based OpenShift cluster with access to GPU instance types
 - Cluster administrator privileges
 
@@ -24,45 +27,7 @@ This module provisions a dedicated GPU worker node on AWS and configures OpenShi
 export CTX="<your-kube-context>"
 ```
 
-## Step 1: Verify GPU Infrastructure
-
-Check that the GPU Operator and NFD are running (installed in Module 0):
-
-```bash
-oc get csv -n nvidia-gpu-operator --context="$CTX" | grep gpu-operator
-oc get csv -n openshift-nfd --context="$CTX" | grep nfd
-```
-
-Both should show `Succeeded`.
-
-!!! note "If the GPU Operator is not installed"
-    Module 0 installs the GPU Operator and NFD as part of the base
-    deployment. If you skipped Module 0 or the operators are not
-    running, return to Module 0 and apply `deploy/base/`.
-
-## Step 2: Create the ClusterPolicy
-
-The ClusterPolicy tells the GPU Operator how to configure NVIDIA drivers,
-the device plugin, and monitoring on GPU nodes. Create it if it doesn't
-already exist:
-
-```bash
-oc get clusterpolicy gpu-cluster-policy --context="$CTX" 2>/dev/null \
-  && echo "ClusterPolicy already exists" \
-  || oc apply -f gpu-cluster-policy.yaml --context="$CTX"
-```
-
-Wait for the ClusterPolicy to reach the `ready` state:
-
-```bash
-oc get clusterpolicy gpu-cluster-policy --context="$CTX" \
-  -o jsonpath='{.status.state}'
-```
-
-Expected: `ready`. If it shows `notReady`, that is normal -- the policy
-will finish initializing after a GPU node joins the cluster.
-
-## Step 3: Discover MachineSet Parameters
+## Step 1: Discover MachineSet Parameters
 
 You need six values from your cluster to create the GPU MachineSet. Extract
 them from an existing worker MachineSet:
@@ -114,7 +79,11 @@ echo "SECURITY_GROUP=$SECURITY_GROUP"
     `oc get machineset $WORKER_MS -n openshift-machine-api --context="$CTX" -o yaml`
     and locate the field manually.
 
-## Step 4: Create the GPU MachineSet
+## Step 2: Create the GPU MachineSet
+
+Create the MachineSet first so AWS starts provisioning the instance
+immediately. The GPU Operator installs in the next step while the node
+provisions.
 
 === "Approach A: Parameterized Template"
 
@@ -157,15 +126,71 @@ Verify the MachineSet was created:
 oc get machineset -n openshift-machine-api --context="$CTX" | grep gpu
 ```
 
+## Step 3: Install the GPU Operator and NFD
+
+While the GPU node provisions, install the NVIDIA GPU Operator and
+Node Feature Discovery:
+
+```bash
+oc apply -f nfd-operator.yaml --context="$CTX"
+oc apply -f gpu-operator.yaml --context="$CTX"
+```
+
+Wait for both operators to install:
+
+```bash
+echo "Waiting for NFD operator..."
+until oc get csv -n openshift-nfd --context="$CTX" 2>/dev/null | grep -q Succeeded; do
+  sleep 10
+done
+echo "NFD operator ready"
+
+echo "Waiting for GPU operator..."
+until oc get csv -n nvidia-gpu-operator --context="$CTX" 2>/dev/null | grep -q Succeeded; do
+  sleep 10
+done
+echo "GPU operator ready"
+```
+
+This typically takes 2--3 minutes.
+
+## Step 4: Create NFD Instance and ClusterPolicy
+
+Create the Node Feature Discovery instance so the cluster can detect
+GPU hardware on nodes:
+
+```bash
+oc apply -f nfd-instance.yaml --context="$CTX"
+```
+
+Create the ClusterPolicy, which tells the GPU Operator how to configure
+NVIDIA drivers, the device plugin, and monitoring:
+
+```bash
+oc apply -f gpu-cluster-policy.yaml --context="$CTX"
+```
+
+!!! note "ClusterPolicy status"
+    The ClusterPolicy will show `notReady` until a GPU node joins the
+    cluster. This is normal -- the drivers install automatically when
+    the node appears.
+
 ## Step 5: Wait for the GPU Node
 
-The node takes 10--15 minutes to provision. Watch the Machine status:
+Check whether the GPU node has joined the cluster. If you continued
+from Step 2 without waiting, the node may already be ready:
+
+```bash
+oc get machines -n openshift-machine-api --context="$CTX" | grep gpu
+```
+
+If the phase is not yet `Running`, watch until it is:
 
 ```bash
 oc get machines -n openshift-machine-api --context="$CTX" -w | grep gpu
 ```
 
-Wait until the phase shows `Running`. Then verify the node joined the cluster:
+Then verify the node joined:
 
 ```bash
 oc get nodes --context="$CTX" -l node-role.kubernetes.io/gpu=
@@ -206,6 +231,19 @@ oc get hardwareprofile nvidia-gpu -n redhat-ods-applications --context="$CTX"
 Run all checks:
 
 ```bash
+# GPU Operator installed
+oc get csv -n nvidia-gpu-operator --context="$CTX" | grep gpu-operator
+# Expected: Succeeded
+
+# NFD installed
+oc get csv -n openshift-nfd --context="$CTX" | grep nfd
+# Expected: Succeeded
+
+# ClusterPolicy ready
+oc get clusterpolicy gpu-cluster-policy --context="$CTX" \
+  -o jsonpath='{.status.state}'
+# Expected: ready
+
 # GPU node is ready
 oc get nodes --context="$CTX" -l node-role.kubernetes.io/gpu= \
   -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}'
@@ -226,6 +264,9 @@ oc get hardwareprofile nvidia-gpu -n redhat-ods-applications --context="$CTX" \
 
 | Resource | Namespace | Purpose |
 |----------|-----------|---------|
+| NFD Operator | `openshift-nfd` | Node Feature Discovery for GPU detection |
+| GPU Operator | `nvidia-gpu-operator` | NVIDIA GPU support (drivers, device plugin) |
+| NodeFeatureDiscovery | `openshift-nfd` | NFD instance for hardware feature labels |
 | ClusterPolicy `gpu-cluster-policy` | (cluster-wide) | Configures NVIDIA drivers, device plugin, and monitoring on GPU nodes |
 | MachineSet `<infra-id>-gpu-<az>` | `openshift-machine-api` | Provisions a `g6e.4xlarge` GPU instance on AWS |
 | GPU Node | (cluster) | Worker node with NVIDIA GPU and `nvidia.com/gpu:NoSchedule` taint |
@@ -236,6 +277,6 @@ oc get hardwareprofile nvidia-gpu -n redhat-ods-applications --context="$CTX" \
 **Next**: [Module 2 -- Gateway Infrastructure](../02-gateway-infrastructure/README.md)
 
 !!! note "Continue while the GPU node provisions"
-    The MachineSet takes 10--15 minutes to provision. Continue with
-    Module 2 while you wait -- you will verify the GPU node in
-    Module 3.
+    If the GPU node is still provisioning or drivers are still
+    installing, continue with Module 2. You will verify the GPU node
+    in Module 3 before deploying a model.

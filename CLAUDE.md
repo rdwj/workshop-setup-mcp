@@ -79,7 +79,7 @@ The `deploy/` directory contains Kustomize overlays that build up the full stack
 | 13 | playground | Gen AI Studio Playground with external model and MCP tools |
 | 14 | vault | HashiCorp Vault integration |
 
-`deploy/base/` contains OpenShift operator subscriptions (RHOAI, NFD, Authorino, Web Terminal, GPU).
+`deploy/base/` contains OpenShift operator subscriptions (RHOAI, Web Terminal). GPU Operator and NFD are installed in Module 1.
 
 ### Two-Plane Tool System
 

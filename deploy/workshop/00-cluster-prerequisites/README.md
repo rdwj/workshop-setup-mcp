@@ -60,6 +60,11 @@ Look for these key operators:
 - `servicemeshoperator3` (Red Hat OpenShift Service Mesh 3)
 - `cert-manager-operator`
 
+!!! note "GPU Operator and NFD"
+    The GPU Operator and Node Feature Discovery are installed in
+    [Module 1](../01-gpu-node/README.md), not here. If you plan to
+    use a GPU, continue to Module 1 after this module.
+
 This typically takes 3--5 minutes. If an operator stays in `Installing`
 for more than 5 minutes, check for pending InstallPlans:
 
@@ -80,7 +85,7 @@ done
 ## Step 3: Second Pass -- Operands
 
 Once all operators show `Succeeded`, run the overlay again. This time the
-operand CRs (DataScienceCluster, NodeFeatureDiscovery, etc.) will be
+operand CRs (DataScienceCluster, OdhDashboardConfig) will be
 created successfully:
 
 ```bash
@@ -121,8 +126,6 @@ You should see a GatewayClass named `data-science-gateway-class` with
 | RHOAI 3.4 | AI platform (brings Service Mesh 3 as a dependency) |
 | Service Mesh 3 | Provides Istio and GatewayClass for the MCP Gateway |
 | cert-manager | TLS certificate management |
-| NFD Operator | Node Feature Discovery (for GPU detection) |
-| GPU Operator | NVIDIA GPU support (optional, for local model serving) |
 | Web Terminal | In-browser terminal for cluster access |
 
 ---
