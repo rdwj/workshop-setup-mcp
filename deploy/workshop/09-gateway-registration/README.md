@@ -48,20 +48,21 @@ oc apply -f referencegrant.yaml
 ## Step 3: Create the MCPServerRegistration
 
 The MCPServerRegistration tells the MCP broker about the backend server and
-assigns a `prefix`. All tools from this server will be prefixed with
+assigns a `toolPrefix`. All tools from this server will be prefixed with
 `openshift_` (e.g., `pods_list` becomes `openshift_pods_list`):
 
 ```bash
 oc apply -f mcpserverregistration.yaml
 ```
 
-!!! important "`prefix` is Immutable"
+!!! important "`toolPrefix` is Immutable"
 
-    The `prefix` field cannot be changed after the MCPServerRegistration is
-    created — it affects tool routing in the broker's configuration cache.
+    The `toolPrefix` field cannot be changed after the MCPServerRegistration
+    is created — it affects tool routing in the broker's configuration cache.
     If you need a different prefix, delete and recreate the resource.
-    Plan your naming convention before applying. Common patterns include
-    `<team>_` or `<server>_` prefixes.
+    The CRD field is `toolPrefix` (not `prefix` — using the wrong field
+    name is silently ignored and tools appear unprefixed). Plan your naming
+    convention before applying.
 
 !!! important "Broker Does Not Auto-Reload"
 
@@ -159,6 +160,62 @@ oc get mcpvirtualservers -n mcp-system
 These MCPVirtualServers are referenced later in AuthPolicy configurations
 (Module 10) to route users to different tool subsets based on their identity.
 
+## Step 6: Configure Rate Limiting (Optional)
+
+Kuadrant RateLimitPolicy CRDs let you enforce per-user request quotas at
+two levels: a gateway-wide default and per-route overrides. Both use
+`auth.identity.preferred_username` from the Keycloak JWT as the counter
+key, so limits track individual users rather than source IPs.
+
+> **Note:** Rate limiting depends on JWT claims from Keycloak. The policies
+> can be applied now, but enforcement only takes effect after Module 10 sets
+> up identity and authentication.
+
+### Gateway-level default
+
+This policy attaches to the Gateway's `mcps` listener and applies to all
+routes that do not define their own RateLimitPolicy. It allows 10 requests
+per minute per user:
+
+```bash
+oc apply -f ratelimitpolicy-gateway.yaml
+```
+
+### Per-server override
+
+This policy attaches directly to the OpenShift MCP server's HTTPRoute and
+overrides the gateway default. It allows 5 requests per minute per user
+for this specific server:
+
+```bash
+oc apply -f ratelimitpolicy-per-server.yaml
+```
+
+The two-tier model works because Kuadrant's `defaults:` block (used in the
+gateway policy) is inherited by routes unless the route has its own
+`limits:` block. Routes with an explicit policy always win.
+
+### Verify rate limiting
+
+After completing Module 10, you can confirm rate limiting is active by
+sending requests that exceed the limit. The gateway returns HTTP 429 when
+the quota is exhausted:
+
+```bash
+CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
+TOKEN=$(cat /tmp/mcp-token)  # Acquired in Module 10
+
+for i in $(seq 1 6); do
+  curl -s -o /dev/null -w "Request ${i}: HTTP %{http_code}\n" \
+    "https://openshift.mcp.${CLUSTER_DOMAIN}/mcp" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}'
+done
+```
+
+The first 5 requests should return HTTP 200; the 6th should return HTTP 429.
+
 ---
 
 ## What You Deployed
@@ -170,6 +227,8 @@ These MCPVirtualServers are referenced later in AuthPolicy configurations
 | MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: openshift_) |
 | MCPVirtualServer (admin-tools) | mcp-system | Full 14-tool set for administrators |
 | MCPVirtualServer (user-tools) | mcp-system | 8-tool read-only subset for developers |
+| RateLimitPolicy (mcp-gateway-ratelimit) | mcp-system | 10 req/min per user across all MCP servers (default) |
+| RateLimitPolicy (openshift-mcp-ratelimit) | mcp-ecosystem | 5 req/min per user for the OpenShift MCP server (override) |
 
 ---
 
