@@ -1,0 +1,26 @@
+apiVersion: perses.dev/v1alpha2
+kind: PersesDatasource
+metadata:
+  name: loki-mcp-logs
+  namespace: openshift-logging
+spec:
+  config:
+    display:
+      name: "Loki — MCP Application Logs"
+    default: true
+    plugin:
+      kind: "LokiDatasource"
+      spec:
+        proxy:
+          kind: HTTPProxy
+          spec:
+            url: https://logging-loki-gateway-http.openshift-logging.svc.cluster.local:8080/api/logs/v1/application
+            headers:
+              X-Scope-OrgID: application
+            secret: loki-datasource-secret
+  client:
+    tls:
+      enable: true
+      caCert:
+        type: file
+        certPath: /ca/service-ca.crt
