@@ -71,13 +71,15 @@ The `deploy/` directory contains Kustomize overlays that build up the full stack
 | 05 | model-endpoint | LLM endpoint (local or external) |
 | 06 | mcp-gateway | MCP Gateway broker |
 | 07 | mcp-server-prerequisites | ServiceAccount, RBAC, ConfigMap for MCP server |
-| 08 | mcp-server | MCP server deployment |
-| 09 | gateway-registration | Register MCP servers with gateway |
+| 08 | mcp-server | OpenShift MCP server deployment |
+| 08+ | github-mcp-server | GitHub MCP server with credentialRef and toolPrefix |
+| 09 | gateway-registration | Register MCP servers with gateway, rate limiting |
 | 10 | identity-auth | Keycloak realm, clients, user groups |
 | 11 | deploy-agent | Build and deploy the agent, gateway, and UI |
 | 12 | agent-test | Agent testing (admin + user configs) |
 | 13 | playground | Gen AI Studio Playground with external model and MCP tools |
 | 14 | vault | HashiCorp Vault integration |
+| 15 | observability | Cluster Observability Operator, Perses dashboards, Loki logging |
 
 `deploy/base/` contains OpenShift operator subscriptions (RHOAI, Web Terminal). GPU Operator and NFD are installed in Module 1.
 
@@ -128,6 +130,9 @@ text = await self.call_model_validated(my_validator_fn, max_retries=3)
 - **MCPServerRegistration `credentialRef` requires a labeled Secret.** The Secret referenced by `credentialRef` must have the label `mcp.kuadrant.io/secret=true`. Without it, the MCP Gateway controller silently fails to reconcile — the error only appears in the controller pod logs (`openshift-operators` namespace), not in the registration status.
 - **Broker does not auto-reload config.** After the controller updates the broker's config secret (e.g., adding a new server or credential), the broker pod must be restarted: `oc rollout restart deployment/mcp-gateway -n mcp-system`.
 - **MCPServerRegistration uses `toolPrefix`, not `prefix`.** The CRD field is `spec.toolPrefix`. Using `prefix` is silently ignored — tools appear unprefixed. Also, `toolPrefix` is immutable (lesson #11): changing it requires deleting and recreating the registration.
+- **MCP Gateway pod uses the `openshift-gateway` Istio revision, not `default`.** The Envoy gateway-class pod runs Istio v1.26.2 from the `openshift-gateway` revision in `openshift-ingress`. Telemetry resources and meshConfig patches (e.g., extensionProviders) must target `istio/openshift-gateway` in `openshift-ingress`, not `istio/default` in `istio-system`. Check with: `oc exec <gateway-pod> -c istio-proxy -- pilot-agent request GET config_dump | python3 -c "..."` and look for `ISTIO_VERSION` in the bootstrap node metadata.
+- **ClusterLogForwarder requires three RBAC layers.** (1) CLO authorization: `collect-application-logs` and `collect-infrastructure-logs` ClusterRoleBindings. (2) Loki write: `logging-collector-logs-writer` ClusterRoleBinding. (3) TLS trust: ConfigMap with `service.beta.openshift.io/inject-cabundle: "true"`. Missing any one causes silent failures — no TLS errors, just 403s (missing write RBAC) or no collector pods (missing CLO authorization).
+- **AuthPolicy `issuerUrl` is a placeholder.** The repo manifest uses `KEYCLOAK_ISSUER` as a placeholder. Always apply the AuthPolicy with `sed` substitution: `sed "s|KEYCLOAK_ISSUER|${ACTUAL_URL}|g" authpolicy.yaml | oc apply -f -`. Applying the manifest directly overwrites the cluster's configured issuer URL with the literal string.
 
 ## Common Mistakes
 

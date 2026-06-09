@@ -1,0 +1,12 @@
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: mcp-gateway-access-logging
+  namespace: mcp-system
+spec:
+  selector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: mcp-gateway
+  accessLogging:
+  - providers:
+    - name: mcp-access-log

@@ -41,6 +41,7 @@ spec:
         keycloak-jwt:
           jwt:
             issuerUrl: KEYCLOAK_ISSUER
+          metrics: true
       authorization:
         tool-roles:
           opa:
@@ -136,6 +137,7 @@ spec:
               allowed_tools := json.marshal({ocp_key: ocp_tools, gh_key: gh_tools})
 
               allow := true
+          metrics: true
       response:
         success:
           headers:
@@ -151,12 +153,19 @@ spec:
                     selector: auth.authorization.tool-roles.allowed_tools
                   groups:
                     selector: auth.identity.groups
+              metrics: true
             # Strip the Authorization header before forwarding to the backend.
             # Without this, the OpenShift MCP server uses the Keycloak JWT
             # for K8s API auth instead of its ServiceAccount token, and fails.
             authorization:
               plain:
                 value: ""
+          dynamicMetadata:
+            user-identity:
+              json:
+                properties:
+                  username:
+                    selector: auth.identity.preferred_username
         unauthenticated:
           message:
             value: "Authentication required."

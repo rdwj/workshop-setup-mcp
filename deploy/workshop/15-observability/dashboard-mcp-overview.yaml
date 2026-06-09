@@ -94,6 +94,63 @@ spec:
           width: 12
           x: 12
           "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Gateway Traffic
+        items:
+        - content:
+            $ref: '#/spec/panels/gateway_request_rate'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/request_latency_p95'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Auth & Rate Limiting
+        items:
+        - content:
+            $ref: '#/spec/panels/auth_denials'
+          height: 8
+          width: 8
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/ratelimit_denials'
+          height: 8
+          width: 8
+          x: 8
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/auth_allow_deny_ratio'
+          height: 8
+          width: 8
+          x: 16
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Auth Evaluator Performance
+        items:
+        - content:
+            $ref: '#/spec/panels/evaluator_rate'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/evaluator_duration'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
     panels:
       pod_status:
         kind: Panel
@@ -223,3 +280,129 @@ spec:
                 spec:
                   query: sum by (pod) (container_memory_working_set_bytes{namespace="keycloak", container!="", container!="POD"}) / 1024 / 1024
                   seriesNameFormat: "{{pod}} (MiB)"
+      gateway_request_rate:
+        kind: Panel
+        spec:
+          display:
+            name: MCP Gateway Request Rate
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (response_code) (rate(istio_requests_total{destination_service_namespace="mcp-system", reporter="source"}[$__rate_interval]))
+                  seriesNameFormat: "HTTP {{response_code}}"
+      request_latency_p95:
+        kind: Panel
+        spec:
+          display:
+            name: Request Latency P95 (ms)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: histogram_quantile(0.95, sum by (le) (rate(istio_request_duration_milliseconds_bucket{destination_service_namespace="mcp-system", reporter="source"}[$__rate_interval])))
+                  seriesNameFormat: "p95"
+      auth_denials:
+        kind: Panel
+        spec:
+          display:
+            name: Auth Denials (401)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(istio_requests_total{destination_service_namespace="mcp-system", response_code="401", reporter="source"}[$__rate_interval]))
+                  seriesNameFormat: "401 Unauthorized"
+      ratelimit_denials:
+        kind: Panel
+        spec:
+          display:
+            name: Rate Limit Denials (429)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(istio_requests_total{destination_service_namespace="mcp-system", response_code="429", reporter="source"}[$__rate_interval]))
+                  seriesNameFormat: "429 (Envoy)"
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(rate(limited_calls{limitador_namespace=~"mcp-system.*"}[$__rate_interval]))
+                  seriesNameFormat: "Limitador limited"
+      auth_allow_deny_ratio:
+        kind: Panel
+        spec:
+          display:
+            name: Kuadrant Allow / Deny
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(kuadrant_allowed[$__rate_interval]))
+                  seriesNameFormat: "Allowed"
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(kuadrant_denied[$__rate_interval]))
+                  seriesNameFormat: "Denied"
+      evaluator_rate:
+        kind: Panel
+        spec:
+          display:
+            name: Auth Evaluator Call Rate
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (evaluator_name) (rate(auth_server_evaluator_total{namespace="mcp-system"}[$__rate_interval]))
+                  seriesNameFormat: "{{evaluator_name}}"
+      evaluator_duration:
+        kind: Panel
+        spec:
+          display:
+            name: Auth Evaluator Duration P95 (s)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: histogram_quantile(0.95, sum by (evaluator_name, le) (rate(auth_server_evaluator_duration_seconds_bucket{namespace="mcp-system"}[$__rate_interval])))
+                  seriesNameFormat: "{{evaluator_name}}"
