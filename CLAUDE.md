@@ -123,6 +123,12 @@ result = await self.use_tool("check_gateway_auth")
 text = await self.call_model_validated(my_validator_fn, max_retries=3)
 ```
 
+## Lessons Learned
+
+- **MCPServerRegistration `credentialRef` requires a labeled Secret.** The Secret referenced by `credentialRef` must have the label `mcp.kuadrant.io/secret=true`. Without it, the MCP Gateway controller silently fails to reconcile — the error only appears in the controller pod logs (`openshift-operators` namespace), not in the registration status.
+- **Broker does not auto-reload config.** After the controller updates the broker's config secret (e.g., adding a new server or credential), the broker pod must be restarted: `oc rollout restart deployment/mcp-gateway -n mcp-system`.
+- **MCPServerRegistration uses `toolPrefix`, not `prefix`.** The CRD field is `spec.toolPrefix`. Using `prefix` is silently ignored — tools appear unprefixed. Also, `toolPrefix` is immutable (lesson #11): changing it requires deleting and recreating the registration.
+
 ## Common Mistakes
 
 - **Do not edit `src/fipsagents/`** -- it is the vendored framework.

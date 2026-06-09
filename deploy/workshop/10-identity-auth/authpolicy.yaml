@@ -11,8 +11,8 @@
 # inline policy below instead of hardcoding tool lists in CEL.
 #
 # Groups:
-#   mcp-admins -> admin-tools (all 14 tools)
-#   all others -> user-tools (8 read-only tools)
+#   mcp-admins -> all OpenShift tools (14) + all GitHub tools (25, server runs read-only)
+#   all others -> read-only OpenShift tools (8) + subset GitHub tools (15)
 #
 # Prerequisites:
 #   1. Keycloak "mcp-gateway" realm with groups (mcp-admins, mcp-users, mcp-github)
@@ -46,7 +46,7 @@ spec:
           opa:
             allValues: true
             rego: |
-              admin_tools := [
+              ocp_admin_tools := [
                 "configuration_view",
                 "events_list",
                 "namespaces_list",
@@ -63,7 +63,7 @@ spec:
                 "resources_list"
               ]
 
-              user_tools := [
+              ocp_user_tools := [
                 "namespaces_list",
                 "pods_get",
                 "pods_list",
@@ -74,16 +74,66 @@ spec:
                 "resources_list"
               ]
 
+              gh_admin_tools := [
+                "get_commit",
+                "get_file_contents",
+                "get_label",
+                "get_latest_release",
+                "get_me",
+                "get_release_by_tag",
+                "get_tag",
+                "get_team_members",
+                "get_teams",
+                "issue_read",
+                "list_branches",
+                "list_commits",
+                "list_issue_types",
+                "list_issues",
+                "list_pull_requests",
+                "list_releases",
+                "list_repository_collaborators",
+                "list_tags",
+                "pull_request_read",
+                "search_code",
+                "search_commits",
+                "search_issues",
+                "search_pull_requests",
+                "search_repositories",
+                "search_users"
+              ]
+
+              gh_user_tools := [
+                "get_file_contents",
+                "get_me",
+                "issue_read",
+                "list_branches",
+                "list_issues",
+                "list_pull_requests",
+                "list_releases",
+                "pull_request_read",
+                "search_code",
+                "search_issues",
+                "search_pull_requests",
+                "search_repositories",
+                "search_users",
+                "get_commit",
+                "list_commits"
+              ]
+
               is_admin {
                 input.auth.identity.groups[_] == "mcp-admins"
               }
 
-              tools := admin_tools { is_admin }
-              tools := user_tools { not is_admin }
+              ocp_tools := ocp_admin_tools { is_admin }
+              ocp_tools := ocp_user_tools { not is_admin }
 
-              server_key := "mcp-ecosystem/openshift-mcp-server"
+              gh_tools := gh_admin_tools { is_admin }
+              gh_tools := gh_user_tools { not is_admin }
 
-              allowed_tools := json.marshal({server_key: tools})
+              ocp_key := "mcp-ecosystem/openshift-mcp-server"
+              gh_key := "mcp-ecosystem/github-mcp-server"
+
+              allowed_tools := json.marshal({ocp_key: ocp_tools, gh_key: gh_tools})
 
               allow := true
       response:
