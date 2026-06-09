@@ -9,7 +9,7 @@ spec:
       namespace: mcp-system
       sectionName: mcps
   hostnames:
-    - "github.mcp.<CLUSTER_DOMAIN>"
+    - "mcp-github.<CLUSTER_DOMAIN>"
   rules:
     - matches:
         - path:

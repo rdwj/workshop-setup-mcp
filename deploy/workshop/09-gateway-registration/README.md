@@ -32,7 +32,7 @@ sed "s/<CLUSTER_DOMAIN>/${CLUSTER_DOMAIN}/g" httproute.yaml | oc apply -f -
 Alternatively, edit `httproute.yaml` by hand and replace `<CLUSTER_DOMAIN>`
 with your cluster's apps domain, then `oc apply -f httproute.yaml`.
 
-The hostname will be `openshift.mcp.<CLUSTER_DOMAIN>`, routed to the
+The hostname will be `mcp-openshift.<CLUSTER_DOMAIN>`, routed to the
 `openshift-mcp-server` service on port 8080.
 
 ## Step 2: Create the ReferenceGrant
@@ -96,7 +96,7 @@ After the broker restarts, test that tools are visible through the gateway.
 CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
 oc exec -n mcp-system deploy/mcp-gateway -- \
   curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
-  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
+  -H "Host: mcp-openshift.${CLUSTER_DOMAIN}" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
   | python3 -m json.tool
@@ -207,7 +207,7 @@ TOKEN=$(cat /tmp/mcp-token)  # Acquired in Module 10
 
 for i in $(seq 1 6); do
   curl -s -o /dev/null -w "Request ${i}: HTTP %{http_code}\n" \
-    "https://openshift.mcp.${CLUSTER_DOMAIN}/mcp" \
+    "https://mcp-openshift.${CLUSTER_DOMAIN}/mcp" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H 'Content-Type: application/json' \
     -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}'
@@ -222,7 +222,7 @@ The first 5 requests should return HTTP 200; the 6th should return HTTP 429.
 
 | Resource | Namespace | Purpose |
 |---|---|---|
-| HTTPRoute | mcp-ecosystem | Routes `openshift.mcp.<domain>` to the MCP server |
+| HTTPRoute | mcp-ecosystem | Routes `mcp-openshift.<domain>` to the MCP server |
 | ReferenceGrant | mcp-system | Allows cross-namespace Gateway reference |
 | MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: openshift_) |
 | MCPVirtualServer (admin-tools) | mcp-system | Full 14-tool set for administrators |

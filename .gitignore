@@ -27,6 +27,10 @@ ENV/
 env/
 *.egg-info/
 
+# Claude Code local settings (contains credentials/tokens)
+.claude/settings.local.json
+.mcp.json
+
 # IDE
 .vscode/
 .idea/

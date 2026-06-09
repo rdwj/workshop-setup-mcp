@@ -1,5 +1,7 @@
 # Replace <CLUSTER_DOMAIN> with your cluster's apps domain.
-# Example: openshift.mcp.apps.cluster-abc.sandbox123.opentlc.com
+# Example: mcp-openshift.apps.cluster-abc.sandbox123.opentlc.com
+# Note: use single-level subdomain (mcp-openshift, not openshift.mcp)
+# so the hostname matches the OpenShift wildcard TLS certificate.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -11,7 +13,7 @@ spec:
       namespace: mcp-system
       sectionName: mcps
   hostnames:
-    - "openshift.mcp.<CLUSTER_DOMAIN>"
+    - "mcp-openshift.<CLUSTER_DOMAIN>"
   rules:
     - matches:
         - path:

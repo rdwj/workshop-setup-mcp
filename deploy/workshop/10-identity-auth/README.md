@@ -264,7 +264,7 @@ Verify the gateway responds to an authenticated `initialize` request:
 ```bash
 oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
   curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
-  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
+  -H "Host: mcp-openshift.${CLUSTER_DOMAIN}" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
@@ -279,7 +279,7 @@ Test unauthenticated access:
 oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
   curl -s -o /dev/null -w "HTTP %{http_code}\n" \
   http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
-  -H "Host: openshift.mcp.${CLUSTER_DOMAIN}" \
+  -H "Host: mcp-openshift.${CLUSTER_DOMAIN}" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 ```

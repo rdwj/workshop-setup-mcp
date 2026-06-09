@@ -81,7 +81,7 @@ CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spe
 sed "s/<CLUSTER_DOMAIN>/${CLUSTER_DOMAIN}/g" github-httproute.yaml | oc apply -f -
 ```
 
-The hostname will be `github.mcp.<CLUSTER_DOMAIN>`, routed to the
+The hostname will be `mcp-github.<CLUSTER_DOMAIN>`, routed to the
 `github-mcp-server` service on port 8082.
 
 > **Note:** The ReferenceGrant created in Module 9 already permits
@@ -136,7 +136,7 @@ Test that the GitHub tools are visible through the gateway:
 CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
 oc exec -n mcp-system deploy/mcp-gateway -- \
   curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
-  -H "Host: github.mcp.${CLUSTER_DOMAIN}" \
+  -H "Host: mcp-github.${CLUSTER_DOMAIN}" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
   | python3 -m json.tool
@@ -190,7 +190,7 @@ The expected set is 25 read-only tools, all prefixed with `github_`:
 |---|---|---|
 | Secret | mcp-ecosystem | GitHub PAT for API authentication |
 | Deployment + Service | mcp-ecosystem | GitHub MCP server (read-only, port 8082) |
-| HTTPRoute | mcp-ecosystem | Routes `github.mcp.<domain>` to the server |
+| HTTPRoute | mcp-ecosystem | Routes `mcp-github.<domain>` to the server |
 | MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: github_) |
 
 ---
