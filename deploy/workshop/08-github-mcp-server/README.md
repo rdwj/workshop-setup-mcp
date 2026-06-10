@@ -151,36 +151,31 @@ The expected set is 25 read-only tools, all prefixed with `github_`:
 
 | Tool | Description |
 |---|---|
-| github_create_or_update_file | Create or update a single file |
-| github_create_branch | Create a new branch |
-| github_create_issue | Create a new issue |
-| github_create_pull_request | Create a pull request |
-| github_fork_repository | Fork a repository |
+| github_get_commit | Get details for a commit |
 | github_get_file_contents | Get file or directory contents |
-| github_get_issue | Get issue details |
-| github_get_pull_request | Get pull request details |
-| github_get_pull_request_diff | Get pull request diff |
-| github_get_pull_request_files | List pull request files |
-| github_get_pull_request_reviews | List pull request reviews |
-| github_get_pull_request_status | Get combined PR check status |
-| github_list_branches | List repository branches |
+| github_get_label | Get a specific label from a repository |
+| github_get_latest_release | Get the latest release |
+| github_get_me | Get the authenticated user |
+| github_get_release_by_tag | Get a release by tag name |
+| github_get_tag | Get details about a git tag |
+| github_get_team_members | Get team members |
+| github_get_teams | Get the user's teams |
+| github_issue_read | Read issue details, comments, sub-issues, or labels |
+| github_list_branches | List branches |
 | github_list_commits | List commits on a branch |
-| github_list_issues | List repository issues |
+| github_list_issue_types | List issue types for an organization |
+| github_list_issues | List issues in a repository |
 | github_list_pull_requests | List pull requests |
-| github_push_files | Push multiple files in one commit |
-| github_search_code | Search code across GitHub |
-| github_search_issues | Search issues and PRs |
+| github_list_releases | List releases |
+| github_list_repository_collaborators | List repository collaborators |
+| github_list_tags | List git tags |
+| github_pull_request_read | Read PR details, diff, status, files, reviews, comments, or check runs |
+| github_search_code | Search code across repositories |
+| github_search_commits | Search commits |
+| github_search_issues | Search issues |
+| github_search_pull_requests | Search pull requests |
 | github_search_repositories | Search repositories |
 | github_search_users | Search users |
-| github_get_me | Get the authenticated user |
-| github_get_notifications | Get user notifications |
-| github_get_code_scanning_alert | Get a code scanning alert |
-| github_list_code_scanning_alerts | List code scanning alerts |
-
-> **Note:** Despite running in `--read-only` mode, the server still
-> advertises write tools (create_issue, push_files, etc.). The server
-> will reject any write operations at runtime. This is a known behavior
-> of the GitHub MCP server's read-only flag.
 
 ---
 
@@ -192,6 +187,30 @@ The expected set is 25 read-only tools, all prefixed with `github_`:
 | Deployment + Service | mcp-ecosystem | GitHub MCP server (read-only, port 8082) |
 | HTTPRoute | mcp-ecosystem | Routes `mcp-github.<domain>` to the server |
 | MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: github_) |
+
+---
+
+## Limitations
+
+### Single-Identity Model
+
+The official GitHub MCP server is designed for a single developer on their
+local machine. It authenticates all GitHub API requests with the PAT
+configured in the `github-mcp-token` Secret — there is no per-request
+identity pass-through.
+
+When accessed directly, each developer can use their own GitHub credentials.
+When accessed through the MCP Gateway, all requests use the shared PAT
+regardless of which user's JWT authorized the gateway request. This means:
+
+- The server is deployed in `--read-only` mode to prevent unattributed writes
+- All GitHub API rate limits are shared across users of the gateway
+- Audit logs on GitHub show the PAT owner, not the individual developer
+
+Supporting per-user GitHub identity through the gateway would require a custom
+MCP server that accepts pass-through identity headers and maps them to
+per-user credentials (for example, via HashiCorp Vault dynamic secrets from
+Module 14).
 
 ---
 
