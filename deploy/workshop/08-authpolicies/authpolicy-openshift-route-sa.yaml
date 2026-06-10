@@ -1,0 +1,46 @@
+# Per-route AuthPolicy: OpenShift MCP server — SHARED SERVICEACCOUNT mode.
+#
+# Fallback variant preserving today's behavior: the user's JWT is validated
+# (so tool-level authorization still works per-user) but stripped before the
+# request reaches the server, which falls back to its mcp-viewer
+# ServiceAccount for K8s API calls. No per-user K8s RBAC, no per-user audit
+# trail at the K8s API level.
+#
+# Use this only if External OIDC (Module 7) is not configured. Otherwise prefer
+# authpolicy-openshift-route-passthrough.yaml. Apply exactly ONE of the two.
+#
+# Replace KEYCLOAK_ISSUER via sed before applying.
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: openshift-mcp-route-auth
+  namespace: mcp-ecosystem
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: openshift-mcp-server
+  rules:
+    authentication:
+      keycloak-jwt:
+        jwt:
+          issuerUrl: KEYCLOAK_ISSUER
+        metrics: true
+    authorization:
+      tool-roles:
+        opa:
+          rego: |
+            allow { not input.request.headers["x-mcp-toolname"] }
+
+            allow {
+              servername := input.request.headers["x-mcp-servername"]
+              toolname := input.request.headers["x-mcp-toolname"]
+              input.auth.identity.resource_access[servername].roles[_] == toolname
+            }
+        metrics: true
+    response:
+      success:
+        headers:
+          authorization:
+            plain:
+              value: ""

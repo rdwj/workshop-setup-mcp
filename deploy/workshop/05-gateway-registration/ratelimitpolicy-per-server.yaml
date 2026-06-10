@@ -1,0 +1,17 @@
+apiVersion: kuadrant.io/v1
+kind: RateLimitPolicy
+metadata:
+  name: openshift-mcp-ratelimit
+  namespace: mcp-ecosystem
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: openshift-mcp-server
+  limits:
+    per-user:
+      rates:
+        - limit: 5
+          window: 1m
+      counters:
+        - expression: auth.identity.preferred_username

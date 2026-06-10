@@ -61,25 +61,33 @@ Key env vars for auth:
 
 The `deploy/` directory contains Kustomize overlays that build up the full stack in order:
 
+The workshop is sequenced as a required core path (per-user identity is the goal milestone), then optional tracks. See `docs/workshop-restructure-plan.md` for the rationale.
+
 | Stage | Directory | Purpose |
 |-------|-----------|---------|
 | 00 | cluster-prerequisites | RHOAI, Service Mesh, and platform operators |
-| 01 | gpu-node | GPU MachineSet, ClusterPolicy, and HardwareProfile |
-| 02 | gateway-infrastructure | Kuadrant API gateway |
-| 03 | models-as-a-service | MaaS PostgreSQL, Gateway, TLS, MaaS API |
-| 04 | deploy-model | gpt-oss-20b model deployment via KServe |
-| 05 | model-endpoint | LLM endpoint (local or external) |
-| 06 | mcp-gateway | MCP Gateway broker |
-| 07 | mcp-server-prerequisites | ServiceAccount, RBAC, ConfigMap for MCP server |
-| 08 | mcp-server | MCP server deployment |
-| 09 | gateway-registration | Register MCP servers with gateway |
-| 10 | identity-auth | Keycloak realm, clients, user groups |
-| 11 | deploy-agent | Build and deploy the agent, gateway, and UI |
-| 12 | agent-test | Agent testing (admin + user configs) |
-| 13 | playground | Gen AI Studio Playground with external model and MCP tools |
-| 14 | vault | HashiCorp Vault integration |
+| 01 | gateway-infrastructure | Kuadrant API gateway |
+| 02 | mcp-gateway | MCP Gateway broker, two-plane Gateway (mcp/mcps listeners), client Route — the single client URL |
+| 03 | mcp-server-prerequisites | ServiceAccount, RBAC, ConfigMap (writes on, destructive off) for MCP server |
+| 04 | mcp-server | OpenShift MCP server deployment |
+| 05 | gateway-registration | Register MCP servers (internal .mcp.local hostnames), VirtualMCPServers, rate limiting |
+| 06 | identity-keycloak | Keycloak realm, clients, user groups, MCP server client roles, wristband keys |
+| 07 | external-oidc | Keycloak JWTs as K8s API tokens, group→RBAC mapping (break-glass first) |
+| 08 | authpolicies | Layered AuthPolicies: client plane, backend default, per-route passthrough |
+| 09 | developer-onboarding | Claude Code against the gateway — per-user tools, RBAC, audit (core milestone) |
+| 10 | github-mcp-server | GitHub MCP server with credentialRef and toolPrefix (shared PAT, read-only) |
+| 11 | vault | Vault + per-user GitHub PAT injection |
+| 12 | gpu-node | GPU MachineSet, ClusterPolicy, and HardwareProfile (optional model track) |
+| 13 | models-as-a-service | MaaS PostgreSQL, Gateway, TLS, MaaS API |
+| 14 | deploy-model | gpt-oss-20b model deployment via KServe |
+| 15 | model-endpoint | LLM endpoint (local or external) |
+| 16 | deploy-agent | Build and deploy the agent, gateway, and UI |
+| 17 | agent-test | Agent testing (admin + user configs) |
+| 18 | playground | Gen AI Studio Playground with external model and MCP tools |
+| 19 | observability | Cluster Observability Operator, Perses dashboards, Loki logging |
+| 20 | add-mcp-server | Add a third-party MCP server with per-tool access control |
 
-`deploy/base/` contains OpenShift operator subscriptions (RHOAI, Web Terminal). GPU Operator and NFD are installed in Module 1.
+`deploy/base/` contains OpenShift operator subscriptions (RHOAI, Web Terminal). GPU Operator and NFD are installed in Module 12.
 
 ### Two-Plane Tool System
 
@@ -122,6 +130,24 @@ result = await self.use_tool("check_gateway_auth")
 # Validation with retry
 text = await self.call_model_validated(my_validator_fn, max_retries=3)
 ```
+
+## Lessons Learned
+
+- **MCPServerRegistration `credentialRef` requires a labeled Secret.** The Secret referenced by `credentialRef` must have the label `mcp.kuadrant.io/secret=true`. Without it, the MCP Gateway controller silently fails to reconcile — the error only appears in the controller pod logs (`openshift-operators` namespace), not in the registration status.
+- **Broker does not auto-reload config.** After the controller updates the broker's config secret (e.g., adding a new server or credential), the broker pod must be restarted: `oc rollout restart deployment/mcp-gateway -n mcp-system`.
+- **MCPServerRegistration uses `toolPrefix`, not `prefix`.** The CRD field is `spec.toolPrefix`. Using `prefix` is silently ignored — tools appear unprefixed. Also, `toolPrefix` is immutable (lesson #11): changing it requires deleting and recreating the registration.
+- **MCP Gateway pod uses the `openshift-gateway` Istio revision, not `default`.** The Envoy gateway-class pod runs Istio v1.26.2 from the `openshift-gateway` revision in `openshift-ingress`. Telemetry resources and meshConfig patches (e.g., extensionProviders) must target `istio/openshift-gateway` in `openshift-ingress`, not `istio/default` in `istio-system`. Check with: `oc exec <gateway-pod> -c istio-proxy -- pilot-agent request GET config_dump | python3 -c "..."` and look for `ISTIO_VERSION` in the bootstrap node metadata.
+- **ClusterLogForwarder requires three RBAC layers.** (1) CLO authorization: `collect-application-logs` and `collect-infrastructure-logs` ClusterRoleBindings. (2) Loki write: `logging-collector-logs-writer` ClusterRoleBinding. (3) TLS trust: ConfigMap with `service.beta.openshift.io/inject-cabundle: "true"`. Missing any one causes silent failures — no TLS errors, just 403s (missing write RBAC) or no collector pods (missing CLO authorization).
+- **AuthPolicy `issuerUrl` is a placeholder.** The repo manifest uses `KEYCLOAK_ISSUER` as a placeholder. Always apply the AuthPolicy with `sed` substitution: `sed "s|KEYCLOAK_ISSUER|${ACTUAL_URL}|g" authpolicy.yaml | oc apply -f -`. Applying the manifest directly overwrites the cluster's configured issuer URL with the literal string.
+- **Route hostnames must be single-level subdomains.** The OpenShift wildcard TLS certificate covers `*.apps.cluster-xxx` but NOT `*.mcp.apps.cluster-xxx`. Use `mcp-openshift.apps...` (single-level) instead of `openshift.mcp.apps...` (multi-level) in HTTPRoute and Route hostnames. Multi-level subdomains cause TLS verification failures in clients that don't skip verification (like the Claude Code MCP client).
+- **Wristband and VirtualMCPServer are discovery-only individually, but enforce together.** Either alone only filters `tools/list`. When BOTH are active, the broker enforces their intersection on `tools/call`. The OPA Rego in the AuthPolicy adds defense-in-depth at the Authorino level (before the broker) by checking `x-mcp-toolname` and `x-mcp-servername` headers against the JWT's `resource_access` client roles. Replace `allow := true` with conditional `allow { ... }` rules — Authorino injects its own `default allow := false` (do NOT add your own or you get "multiple default rules" error). The ext_proc strips the toolPrefix before setting `x-mcp-toolname`, so Rego should use unprefixed names. Use `arr[_] == val` instead of `val in arr` (the `in` keyword is not supported by the OPA version in Authorino). See the guide section 5.1.5.3 for the canonical pattern.
+- **Tool permissions via Keycloak `resource_access` client roles.** Create bearer-only Keycloak clients whose client IDs match MCPServerRegistration names exactly (e.g., `mcp-ecosystem/openshift-mcp-server` — Keycloak supports `/` in client IDs). Define client roles matching unprefixed tool names. The OPA Rego reads `input.auth.identity.resource_access[servername].roles` dynamically from the JWT, so tool permission changes only require Keycloak admin actions, not AuthPolicy edits.
+- **GitHub MCP server is single-identity only.** The official GitHub MCP server (`ghcr.io/github/github-mcp-server`) is designed for one developer on their local machine. It authenticates all GitHub API requests with a single PAT — there is no per-request identity pass-through. Behind the gateway, all users share the PAT regardless of their JWT identity. Deploy in `--read-only` mode to prevent unattributed writes. Per-user identity would require a custom MCP server with pass-through identity headers mapped to per-user credentials (e.g., via Vault).
+- **Sail operator reconciles meshConfig.extensionProviders away.** Do not patch the Istio CR to add custom access log providers — the Sail operator will revert the change. Use an EnvoyFilter instead, targeting the gateway pod via `workloadSelector`. The EnvoyFilter injects a JSON access log directly into the Envoy HTTP connection manager and is not reconciled by the operator.
+- **Kuadrant uses WASM plugin, not ext_authz.** The `%DYNAMIC_METADATA(envoy.filters.http.ext_authz:...)%` access log format doesn't work because Kuadrant's Authorino integration runs as a WASM plugin (`extensions.istio.io/wasmplugin/...`), not a direct ext_authz filter. To capture the authenticated username in access logs, inject it as a request header (`x-auth-username`) in the AuthPolicy's `response.success.headers` and capture it with `%REQ(x-auth-username)%` in the EnvoyFilter.
+- **Perses Loki datasource requires a Perses API secret and RBAC.** The `secret` field in the datasource's HTTPProxy spec references a Perses secret (created via the Perses API, not a Kubernetes Secret). The secret must contain `tlsConfig.caFile: /ca/service-ca.crt` and `authorization.credentialsFile: /var/run/secrets/kubernetes.io/serviceaccount/token`. The Perses ServiceAccount also needs a ClusterRoleBinding for `loki.grafana.com` `application` resources with `get` verb. Only the `LogsTable` panel supports Loki in the Red Hat build of Perses (COO 1.4 Tech Preview) — `LokiTimeSeriesQuery` with `TimeSeriesChart` is not supported.
+- **External OIDC invalidates cached kubeadmin tokens.** Setting `type: OIDC` on the Authentication CR removes the built-in OAuth server. Any cached kubeadmin OAuth tokens (from `oc login`) become invalid immediately. Access the cluster via a ServiceAccount token (from the sandbox provisioning) or the bastion host's `system:admin` kubeconfig. The kubeadmin password itself still works for break-glass if you reconfigure back to the integrated OAuth.
+- **Removing the Authorization header stripping breaks MCP tools/call.** The MCP Gateway broker routes `tools/call` requests back through the Istio gateway internally. If the user's JWT is present in the Authorization header, the broker's internal initialize request to the backend MCP server returns 4xx (the request never reaches the MCP server pod). The header stripping is load-bearing for the broker's internal routing. Per-user K8s identity for MCP tool calls requires the OpenShift MCP server's `token_exchange_strategy`, not header pass-through.
 
 ## Common Mistakes
 

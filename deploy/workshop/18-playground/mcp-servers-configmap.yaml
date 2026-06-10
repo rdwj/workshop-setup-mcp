@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gen-ai-aa-mcp-servers
+  namespace: redhat-ods-applications
+data:
+  MCP-Gateway-Tools: |
+    {
+      "url": "https://mcp-gateway.<CLUSTER_DOMAIN>/mcp",
+      "description": "MCP Gateway providing OpenShift cluster management tools via the Kuadrant MCP Gateway. Includes pod listing, resource management, events, logs, and cluster inspection."
+    }

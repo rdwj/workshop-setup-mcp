@@ -20,23 +20,32 @@ docs_dir: deploy/workshop
 
 nav:
   - Home: README.md
-  - Modules:
+  - Core Path:
     - "Prerequisites": prerequisites/README.md
     - "0. Cluster Prerequisites": 00-cluster-prerequisites/README.md
-    - "1. GPU Compute Node (Skippable)": 01-gpu-node/README.md
-    - "2. Gateway Infrastructure": 02-gateway-infrastructure/README.md
-    - "3. Models as a Service (Skippable)": 03-models-as-a-service/README.md
-    - "4. Deploy a Model (Skippable)": 04-deploy-model/README.md
-    - "5. Model Endpoint": 05-model-endpoint/README.md
-    - "6. MCP Gateway": 06-mcp-gateway/README.md
-    - "7. MCP Server Prerequisites": 07-mcp-server-prerequisites/README.md
-    - "8. Deploy MCP Server": 08-mcp-server/README.md
-    - "9. Gateway Registration": 09-gateway-registration/README.md
-    - "10. Identity & Auth": 10-identity-auth/README.md
-    - "11. Deploy Agent": 11-deploy-agent/README.md
-    - "12. Agent Testing": 12-agent-test/README.md
-    - "13. Gen AI Playground (Optional)": 13-playground/README.md
-    - "14. Vault Integration (Optional)": 14-vault/README.md
+    - "1. Gateway Infrastructure": 01-gateway-infrastructure/README.md
+    - "2. MCP Gateway": 02-mcp-gateway/README.md
+    - "3. MCP Server Prerequisites": 03-mcp-server-prerequisites/README.md
+    - "4. Deploy MCP Server": 04-mcp-server/README.md
+    - "5. Gateway Registration": 05-gateway-registration/README.md
+    - "6. Identity — Keycloak": 06-identity-keycloak/README.md
+    - "7. External OIDC": 07-external-oidc/README.md
+    - "8. AuthPolicies": 08-authpolicies/README.md
+    - "9. Developer Onboarding": 09-developer-onboarding/README.md
+  - "Track B — Per-User Credentials":
+    - "10. GitHub MCP Server": 10-github-mcp-server/README.md
+    - "11. Vault — Per-User PATs": 11-vault/README.md
+  - "Track C — Model + Agent (Optional)":
+    - "12. GPU Compute Node": 12-gpu-node/README.md
+    - "13. Models as a Service": 13-models-as-a-service/README.md
+    - "14. Deploy a Model": 14-deploy-model/README.md
+    - "15. Model Endpoint": 15-model-endpoint/README.md
+    - "16. Deploy Agent": 16-deploy-agent/README.md
+    - "17. Agent Testing": 17-agent-test/README.md
+    - "18. Gen AI Playground": 18-playground/README.md
+  - "Track D — Ops (Optional)":
+    - "19. Observability": 19-observability/README.md
+    - "20. Add a Third-Party MCP Server": 20-add-mcp-server/README.md
   - Reference:
     - "Troubleshooting": troubleshooting.md
     - "Layered Authorization Model": mcp-layered-authorization.md

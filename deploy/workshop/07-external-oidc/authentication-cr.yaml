@@ -1,0 +1,49 @@
+# External OIDC configuration for OpenShift.
+#
+# This replaces the built-in OAuth server with Keycloak as the external
+# OIDC provider. After applying, all cluster authentication flows through
+# Keycloak: console login redirects to Keycloak, CLI login uses the
+# oc-oidc exec plugin, and Keycloak JWTs are valid K8s API tokens.
+#
+# WARNING: This removes the built-in OAuth server. kubeadmin password
+# login stops working. Ensure you have break-glass access via a
+# ServiceAccount token or client certificate kubeconfig before applying.
+#
+# Prerequisites:
+#   1. Keycloak deployed with the mcp-gateway realm
+#   2. console-oidc (confidential) and oc-cli (public) clients created
+#   3. console-oidc-secret Secret in openshift-config namespace
+#   4. RBAC bindings for Keycloak groups
+#
+# Replace KEYCLOAK_ISSUER with your actual Keycloak realm URL.
+# Replace CONSOLE_OIDC_SECRET with the name of your Secret in openshift-config.
+apiVersion: config.openshift.io/v1
+kind: Authentication
+metadata:
+  name: cluster
+spec:
+  type: OIDC
+  oidcProviders:
+  - name: keycloak
+    issuer:
+      issuerURL: KEYCLOAK_ISSUER
+      audiences:
+      - console-oidc
+      - oc-cli
+      - mcp-gateway
+    claimMappings:
+      username:
+        claim: preferred_username
+        prefixPolicy: NoPrefix
+      groups:
+        claim: groups
+        prefix: ""
+    oidcClients:
+    - componentName: console
+      componentNamespace: openshift-console
+      clientID: console-oidc
+      clientSecret:
+        name: CONSOLE_OIDC_SECRET
+    - componentName: cli
+      componentNamespace: openshift-console
+      clientID: oc-cli

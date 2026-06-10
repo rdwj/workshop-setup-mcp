@@ -1,0 +1,4 @@
+secret:
+  ignored-matches:
+    - name: "get-mcp-token.sh env var references (false positive)"
+      match: c39b337aba9762f0ede857f0c798d34f1e5a8abae7b0d535cb4cdd46c8e509d7

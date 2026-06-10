@@ -1,0 +1,482 @@
+apiVersion: perses.dev/v1alpha2
+kind: PersesDashboard
+metadata:
+  name: mcp-ecosystem-overview
+  namespace: openshift-operators
+  labels:
+    app.kubernetes.io/name: mcp-ecosystem-overview
+    app.kubernetes.io/part-of: monitoring
+spec:
+  config:
+    display:
+      name: MCP Ecosystem Overview
+    duration: 1h
+    variables:
+    - kind: ListVariable
+      spec:
+        name: namespace
+        display:
+          name: Namespace
+        defaultValue: mcp-system
+        plugin:
+          kind: StaticListVariable
+          spec:
+            values:
+            - mcp-system
+            - mcp-ecosystem
+            - keycloak
+    layouts:
+    - kind: Grid
+      spec:
+        display:
+          title: Pod Status
+        items:
+        - content:
+            $ref: '#/spec/panels/pod_status'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/pod_restarts'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Resource Usage — MCP Gateway
+        items:
+        - content:
+            $ref: '#/spec/panels/gateway_cpu'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/gateway_memory'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Resource Usage — MCP Servers
+        items:
+        - content:
+            $ref: '#/spec/panels/servers_cpu'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/servers_memory'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Keycloak Authentication
+        items:
+        - content:
+            $ref: '#/spec/panels/keycloak_cpu'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/keycloak_memory'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Gateway Traffic
+        items:
+        - content:
+            $ref: '#/spec/panels/gateway_request_rate'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/request_latency_p95'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Auth & Rate Limiting
+        items:
+        - content:
+            $ref: '#/spec/panels/auth_denials'
+          height: 8
+          width: 8
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/ratelimit_denials'
+          height: 8
+          width: 8
+          x: 8
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/auth_allow_deny_ratio'
+          height: 8
+          width: 8
+          x: 16
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: Auth Evaluator Performance
+        items:
+        - content:
+            $ref: '#/spec/panels/evaluator_rate'
+          height: 8
+          width: 12
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/evaluator_duration'
+          height: 8
+          width: 12
+          x: 12
+          "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: MCP Tool Activity (Logs)
+        items:
+        - content:
+            $ref: '#/spec/panels/tool_activity_log'
+          height: 10
+          width: 24
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/tools_by_user'
+          height: 8
+          width: 12
+          x: 0
+          "y": 10
+        - content:
+            $ref: '#/spec/panels/tools_by_tool'
+          height: 8
+          width: 12
+          x: 12
+          "y": 10
+    panels:
+      pod_status:
+        kind: Panel
+        spec:
+          display:
+            name: Running Pods by Namespace
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (namespace) (kube_pod_status_phase{namespace=~"mcp-system|mcp-ecosystem|keycloak", phase="Running"})
+                  seriesNameFormat: "{{namespace}}"
+      pod_restarts:
+        kind: Panel
+        spec:
+          display:
+            name: Container Restarts (total)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (pod) (kube_pod_container_status_restarts_total{namespace=~"mcp-system|mcp-ecosystem|keycloak"})
+                  seriesNameFormat: "{{pod}}"
+      gateway_cpu:
+        kind: Panel
+        spec:
+          display:
+            name: MCP Gateway CPU Usage
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="mcp-system", container!="", container!="POD"}[$__rate_interval]))
+                  seriesNameFormat: "{{pod}}"
+      gateway_memory:
+        kind: Panel
+        spec:
+          display:
+            name: MCP Gateway Memory Usage
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (pod) (container_memory_working_set_bytes{namespace="mcp-system", container!="", container!="POD"}) / 1024 / 1024
+                  seriesNameFormat: "{{pod}} (MiB)"
+      servers_cpu:
+        kind: Panel
+        spec:
+          display:
+            name: MCP Servers CPU Usage
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="mcp-ecosystem", container!="", container!="POD"}[$__rate_interval]))
+                  seriesNameFormat: "{{pod}}"
+      servers_memory:
+        kind: Panel
+        spec:
+          display:
+            name: MCP Servers Memory Usage
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (pod) (container_memory_working_set_bytes{namespace="mcp-ecosystem", container!="", container!="POD"}) / 1024 / 1024
+                  seriesNameFormat: "{{pod}} (MiB)"
+      keycloak_cpu:
+        kind: Panel
+        spec:
+          display:
+            name: Keycloak CPU Usage
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="keycloak", container!="", container!="POD"}[$__rate_interval]))
+                  seriesNameFormat: "{{pod}}"
+      keycloak_memory:
+        kind: Panel
+        spec:
+          display:
+            name: Keycloak Memory Usage
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (pod) (container_memory_working_set_bytes{namespace="keycloak", container!="", container!="POD"}) / 1024 / 1024
+                  seriesNameFormat: "{{pod}} (MiB)"
+      gateway_request_rate:
+        kind: Panel
+        spec:
+          display:
+            name: MCP Gateway Request Rate
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (response_code) (rate(istio_requests_total{destination_service_namespace="mcp-system", reporter="source"}[$__rate_interval]))
+                  seriesNameFormat: "HTTP {{response_code}}"
+      request_latency_p95:
+        kind: Panel
+        spec:
+          display:
+            name: Request Latency P95 (ms)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: histogram_quantile(0.95, sum by (le) (rate(istio_request_duration_milliseconds_bucket{destination_service_namespace="mcp-system", reporter="source"}[$__rate_interval])))
+                  seriesNameFormat: "p95"
+      auth_denials:
+        kind: Panel
+        spec:
+          display:
+            name: Auth Denials (401)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(istio_requests_total{destination_service_namespace="mcp-system", response_code="401", reporter="source"}[$__rate_interval]))
+                  seriesNameFormat: "401 Unauthorized"
+      ratelimit_denials:
+        kind: Panel
+        spec:
+          display:
+            name: Rate Limit Denials (429)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(istio_requests_total{destination_service_namespace="mcp-system", response_code="429", reporter="source"}[$__rate_interval]))
+                  seriesNameFormat: "429 (Envoy)"
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(rate(limited_calls{limitador_namespace=~"mcp-system.*"}[$__rate_interval]))
+                  seriesNameFormat: "Limitador limited"
+      auth_allow_deny_ratio:
+        kind: Panel
+        spec:
+          display:
+            name: Kuadrant Allow / Deny
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(kuadrant_allowed[$__rate_interval]))
+                  seriesNameFormat: "Allowed"
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(increase(kuadrant_denied[$__rate_interval]))
+                  seriesNameFormat: "Denied"
+      evaluator_rate:
+        kind: Panel
+        spec:
+          display:
+            name: Auth Evaluator Call Rate
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum by (evaluator_name) (rate(auth_server_evaluator_total{namespace="mcp-system"}[$__rate_interval]))
+                  seriesNameFormat: "{{evaluator_name}}"
+      evaluator_duration:
+        kind: Panel
+        spec:
+          display:
+            name: Auth Evaluator Duration P95 (s)
+          plugin:
+            kind: TimeSeriesChart
+            spec: {}
+          queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: histogram_quantile(0.95, sum by (evaluator_name, le) (rate(auth_server_evaluator_duration_seconds_bucket{namespace="mcp-system"}[$__rate_interval])))
+                  seriesNameFormat: "{{evaluator_name}}"
+      tool_activity_log:
+        kind: Panel
+        spec:
+          display:
+            name: Tool Call Activity Log
+          plugin:
+            kind: LogsTable
+            spec:
+              showTime: true
+              enableDetails: true
+          queries:
+          - kind: LogQuery
+            spec:
+              plugin:
+                kind: LokiLogQuery
+                spec:
+                  query: '{kubernetes_namespace_name="mcp-system", kubernetes_container_name="istio-proxy"} | json | line_format "{{.message}}" | json | mcp_toolname != "-" | mcp_toolname != "" | line_format "{{.username}} → {{.mcp_servername}}/{{.mcp_toolname}} [{{.response_code}}] {{.duration_ms}}ms"'
+      tools_by_user:
+        kind: Panel
+        spec:
+          display:
+            name: Tool Calls by User
+          plugin:
+            kind: LogsTable
+            spec:
+              showTime: true
+              enableDetails: true
+          queries:
+          - kind: LogQuery
+            spec:
+              plugin:
+                kind: LokiLogQuery
+                spec:
+                  query: '{kubernetes_namespace_name="mcp-system", kubernetes_container_name="istio-proxy"} | json | line_format "{{.message}}" | json | mcp_toolname != "-" | mcp_toolname != "" | line_format "{{.username}} [{{.response_code}}] {{.mcp_toolname}}"'
+      tools_by_tool:
+        kind: Panel
+        spec:
+          display:
+            name: Tool Calls by Tool
+          plugin:
+            kind: LogsTable
+            spec:
+              showTime: true
+              enableDetails: true
+          queries:
+          - kind: LogQuery
+            spec:
+              plugin:
+                kind: LokiLogQuery
+                spec:
+                  query: '{kubernetes_namespace_name="mcp-system", kubernetes_container_name="istio-proxy"} | json | line_format "{{.message}}" | json | mcp_toolname != "-" | mcp_toolname != "" | line_format "{{.mcp_toolname}} ← {{.username}} [{{.response_code}}] {{.duration_ms}}ms"'

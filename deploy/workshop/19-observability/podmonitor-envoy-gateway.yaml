@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: mcp-gateway-envoy
+  namespace: mcp-system
+  labels:
+    app.kubernetes.io/name: mcp-gateway-envoy
+    app.kubernetes.io/part-of: mcp-observability
+spec:
+  selector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: mcp-gateway
+  podMetricsEndpoints:
+  - port: http-envoy-prom
+    interval: 30s
+    path: /stats/prometheus

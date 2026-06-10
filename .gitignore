@@ -27,6 +27,10 @@ ENV/
 env/
 *.egg-info/
 
+# Claude Code local settings (contains credentials/tokens)
+.claude/settings.local.json
+.mcp.json
+
 # IDE
 .vscode/
 .idea/
@@ -47,10 +51,14 @@ logs/
 *.temp
 tmp/
 temp/
+workshop-walkthrough-notes.md
+NEXT_SESSION.md
 
 # Build artifacts
 dist/
 build/
+!demo/*/build/
+!demo/*/build/buildconfig.yaml
 
 # Testing
 .coverage
@@ -62,3 +70,12 @@ htmlcov/
 *.tar
 site/
 .venv/
+
+# Added by ggshield
+.cache_ggshield
+
+# Agent-run workshop answers (contains credentials and run decisions)
+workshop-answers.yaml
+
+# Agent run notes (review artifacts, not for commit)
+workshop-run-notes-*.md

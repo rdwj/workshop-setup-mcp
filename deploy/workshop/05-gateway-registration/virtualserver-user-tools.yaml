@@ -1,0 +1,33 @@
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPVirtualServer
+metadata:
+  name: user-tools
+  namespace: mcp-system
+spec:
+  description: Read-only tools for developers (OpenShift + GitHub)
+  tools:
+    # OpenShift MCP server (8 tools, prefix: openshift_)
+    - openshift_namespaces_list
+    - openshift_pods_get
+    - openshift_pods_list
+    - openshift_pods_list_in_namespace
+    - openshift_pods_log
+    - openshift_projects_list
+    - openshift_resources_get
+    - openshift_resources_list
+    # GitHub MCP server (15 tools, prefix: github_)
+    - github_get_commit
+    - github_get_file_contents
+    - github_get_me
+    - github_issue_read
+    - github_list_branches
+    - github_list_commits
+    - github_list_issues
+    - github_list_pull_requests
+    - github_list_releases
+    - github_pull_request_read
+    - github_search_code
+    - github_search_issues
+    - github_search_pull_requests
+    - github_search_repositories
+    - github_search_users

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-viewer
+  namespace: mcp-ecosystem
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mcp-viewer-binding
+subjects:
+  - kind: ServiceAccount
+    name: mcp-viewer
+    namespace: mcp-ecosystem
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openshift-mcp-server-config
+  namespace: mcp-ecosystem
+data:
+  config.toml: |
+    log_level = 2
+    port = "8080"
+    # Writes enabled, destructive ops disabled: per-user authorization is
+    # enforced by Keycloak tool roles (Module 6) + K8s RBAC via External
+    # OIDC (Module 7). read_only = true would make admins and viewers
+    # indistinguishable at the K8s layer.
+    read_only = false
+    disable_destructive = true
+    toolsets = ["core", "config"]
+
+    [[denied_resources]]
+    group = ""
+    version = "v1"
+    kind = "Secret"

@@ -1,0 +1,105 @@
+# =========================================================================
+# Workshop run answers — student inputs for an agent running the published
+# workshop guide end to end (from a fresh directory; see workshop-run-prompt.md)
+# =========================================================================
+# COMMITTED TEMPLATE — copy to workshop-answers.yaml (gitignored) and fill in:
+#   cp workshop-answers.example.yaml workshop-answers.yaml
+# Fill in every <PLACEHOLDER> before starting. Values marked (derived) can
+# be looked up at runtime with the command shown — the agent should derive
+# them rather than trusting stale copies.
+#
+# Agent ground rules:
+#   - Follow guide modules strictly in order within the selected tracks.
+#   - Never invent values not in this file, in the guide, or derivable
+#     on-cluster; if a required answer is missing, STOP and ask.
+
+cluster:
+  kube_context: "<KUBE_CONTEXT>"            # oc config get-contexts
+  api_url: "<https://api.cluster-xxx...:6443>"
+  cluster_domain: ""                        # (derived) oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}'
+  cloud: aws                                # Module 12 assumes AWS MachineSets
+  admin_auth: "<how the agent authenticates initially: kubeconfig path or token>"
+
+# Which tracks to run, in order. Core is required for the goal milestone.
+run:
+  core_path: true            # Modules 0–9
+  track_b_github_vault: true # Modules 10–11 (needs GitHub PATs below)
+  track_c_model_agent: false # Modules 12–18 (needs GPU or external model)
+  track_d_ops: false         # Modules 19–20
+  instructor_preapplied_module_0: false   # true if deploy/base/ already applied
+
+decisions:
+  # Module 0–2
+  approve_pending_installplans: yes        # auto-approve stuck OLM InstallPlans
+  patch_lifecycle_operator_memory: yes     # 128Mi -> 512Mi (known OOM)
+  patch_kuadrant_operator_memory_if_crashlooping: yes  # 300Mi -> 1Gi (known OOM; required for AuthPolicy reconciliation)
+  # Module 3 — security posture (locked in by the restructure plan)
+  openshift_mcp_read_only: false           # writes on, disable_destructive stays true, Secrets denied
+  # Module 7 — DISRUPTIVE: removes integrated OAuth; cached oc tokens die
+  external_oidc_proceed: yes
+  external_oidc_break_glass: |
+    Before Module 7 Step 2, create and VERIFY a break-glass path:
+      oc -n kube-system create sa break-glass
+      oc adm policy add-cluster-role-to-user cluster-admin -z break-glass -n kube-system
+      oc create token break-glass -n kube-system --duration=24h > /tmp/break-glass-token
+      oc whoami --token="$(cat /tmp/break-glass-token)"   # must print the SA
+    The agent MUST switch its own cluster auth to this token (or an
+    equivalent surviving credential) BEFORE applying the Authentication CR,
+    and confirm API access with it after the kube-apiserver rollout.
+  rbac_group_mappings:                      # Module 7 Step 3
+    mcp-admins: cluster-admin               # workshop demo value
+    mcp-users: view
+  # Module 8 — per-route policy variant for the OpenShift MCP server
+  openshift_route_policy_variant: passthrough   # passthrough | sa  (passthrough requires Module 7 done)
+  # Module 6/9 — token settings
+  keycloak_token_lifespan_seconds: 3600
+  token_scope: "openid groups"              # REQUIRED on every token request
+
+keycloak:
+  # Admin credentials are (derived) at runtime — do not store here:
+  #   oc get secret keycloak-initial-admin -n keycloak -o jsonpath='{.data.username}' | base64 -d
+  #   oc get secret keycloak-initial-admin -n keycloak -o jsonpath='{.data.password}' | base64 -d
+  realm: mcp-gateway
+  login_client_id: mcp-gateway
+  # client secret is (derived) via admin API after Module 6 Step 7 (README Step 10)
+  workshop_users:                           # created by setup-keycloak-realm.sh
+    - username: developer-a
+      password: developer-a
+      group: mcp-admins                     # all tool roles incl. resources_create_or_update
+    - username: developer-b
+      password: developer-b
+      group: mcp-users                      # read-only subset
+
+github:                                     # Track B only
+  # Module 10 — shared PAT for broker tool discovery (read:user minimum;
+  # stored in the github-mcp-token Secret, label mcp.kuadrant.io/secret=true)
+  discovery_pat: "<ghp_SHARED_DISCOVERY_PAT>"
+  # Module 11 — one PAT per workshop user, seeded into Vault at
+  # secret/mcp-gateway/users/<username>/github (key github_pat)
+  user_pats:
+    developer-a: "<ghp_DEVELOPER_A_PAT>"
+    developer-b: "<ghp_DEVELOPER_B_PAT>"
+
+vault:                                      # Track B, Module 11
+  install_mode: dev                         # dev mode for workshop; NOT production
+  dev_root_token: workshop-root
+  jwt_role_bound_audience: mcp-gateway      # must match aud claim in user tokens
+  user_claim: preferred_username
+
+model:                                      # Track C only
+  use_gpu_on_cluster: false                 # true → Modules 12–14; false → external endpoint below
+  gpu_instance_type: g6e.4xlarge            # Module 12 guide default
+  external_endpoint: "<https://your-model/v1>"   # must support tool calling
+  external_model_name: "<model-id>"
+  external_api_key: "<api-key-or-not-required>"
+
+# ---------------------------------------------------------------------------
+# Expected milestone checks (the agent should verify and report each):
+#   M1 (after Module 2): curl initialize on https://mcp-gateway.<domain>/mcp → 200
+#   M2 (after Module 5): tools/list via gateway shows openshift_* tools (15 expected)
+#   M3 (after Module 7): oc whoami --token=<developer-a JWT> → developer-a
+#   M4 (after Module 8): unauthenticated /mcp → 401; all 3 AuthPolicies Enforced
+#   M5 (after Module 9): developer-b 403 on openshift_resources_create_or_update;
+#       developer-a creates ConfigMap; audit log attributes to developer-a
+#   M6 (after Module 11): github_get_me returns different identities per user
+# ---------------------------------------------------------------------------

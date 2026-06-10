@@ -1,0 +1,14 @@
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: github-mcp-server
+  namespace: mcp-ecosystem
+spec:
+  toolPrefix: github_
+  path: /mcp
+  targetRef:
+    kind: HTTPRoute
+    name: github-mcp-server
+  credentialRef:
+    name: github-mcp-token
+    key: token

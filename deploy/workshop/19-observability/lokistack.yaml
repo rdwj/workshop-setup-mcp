@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: loki-minio-credentials
+  namespace: openshift-logging
+stringData:
+  access_key_id: minioadmin
+  access_key_secret: workshop-minio-2024
+  bucketnames: loki-logs
+  endpoint: http://minio.minio.svc.cluster.local:9000
+  region: us-east-1
+---
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: logging-loki
+  namespace: openshift-logging
+spec:
+  size: 1x.demo
+  storage:
+    schemas:
+    - effectiveDate: "2024-10-01"
+      version: v13
+    secret:
+      name: loki-minio-credentials
+      type: s3
+  storageClassName: gp3-csi
+  tenants:
+    mode: openshift-logging
