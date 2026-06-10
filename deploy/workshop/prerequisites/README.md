@@ -52,6 +52,21 @@ oc login --server=https://<api-server>:6443 -u <user>
 
 ---
 
+## Clone the Workshop Repository
+
+Every module references files from this repository. Clone it and work
+from the repo root:
+
+```bash
+git clone https://github.com/rdwj/workshop-setup-mcp.git
+cd workshop-setup-mcp
+```
+
+All paths in the workshop (e.g., `deploy/base/`, `deploy/workshop/06-identity-keycloak/`)
+are relative to this root.
+
+---
+
 ## Set Your Context Variable
 
 The workshop uses a `$CTX` variable to pass `--context` to `oc`
