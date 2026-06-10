@@ -52,6 +52,7 @@ logs/
 tmp/
 temp/
 workshop-walkthrough-notes.md
+NEXT_SESSION.md
 
 # Build artifacts
 dist/
