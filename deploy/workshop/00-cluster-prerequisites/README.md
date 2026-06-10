@@ -82,7 +82,7 @@ for plan in $(oc get installplan -n openshift-operators --context="$CTX" \
 done
 ```
 
-## Step 3: Second Pass -- Operands
+## Step 3: Second Pass (and Third) -- Operands
 
 Once all operators show `Succeeded`, run the overlay again. This time the
 operand CRs (DataScienceCluster, OdhDashboardConfig) will be
@@ -92,12 +92,17 @@ created successfully:
 oc apply -k deploy/base --context="$CTX"
 ```
 
+If any resource still fails, wait 30 seconds and run the command again.
+Two or three passes is normal -- CRDs register asynchronously after
+their operator starts, so a single retry is not always enough.
+You are done when the command exits cleanly with no errors.
+
 !!! note "OdhDashboardConfig"
 
-    You may see an error for `OdhDashboardConfig` if the
-    `redhat-ods-applications` namespace hasn't been created yet by RHOAI.
-    This is cosmetic and does not affect the workshop. It will succeed on
-    a subsequent run after RHOAI finishes initializing.
+    `OdhDashboardConfig` is typically the last CRD to appear because it
+    depends on the `redhat-ods-applications` namespace, which RHOAI
+    creates during its own initialization. If this resource fails,
+    wait ~30 seconds and re-run -- it does not indicate a real problem.
 
 ## Step 4: Verify
 
