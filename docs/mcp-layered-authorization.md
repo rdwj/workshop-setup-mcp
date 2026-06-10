@@ -35,13 +35,19 @@ The MCP Gateway enforces access control through a four-layer authorization stack
          MCP Server
 ```
 
-## Hard Enforcement vs Filtering
+## Enforcement Tiers
 
-Layers 1 and 2 are **hard enforcement** -- requests are rejected outright with HTTP 401 (invalid token) or 403 (unauthorized for this server). Layers 3 and 4 are **filtering** -- tools are either hidden from `tools/list` responses or rejected when called via `tools/call`. The broker enforces the intersection of layers 3 and 4: a MCPVirtualServer that lists tools the user isn't authorized for via the wristband will result in 403 errors when the LLM attempts to call them.
+**Tier 1 -- Hard enforcement (Authorino, layers 1-2).** Requests are rejected outright with HTTP 401 (invalid token) or 403 (unauthorized for this server). These fire before the broker sees the request.
+
+**Tier 2 -- Broker intersection enforcement (layers 3+4).** When BOTH the wristband (`x-authorized-tools`) AND the VirtualMCPServer (`x-mcp-virtualserver`) are active, the broker enforces their intersection on `tools/call` -- not just `tools/list`. A tool must appear in both layers to be callable. Either layer alone only filters `tools/list` discovery; both together enforce execution.
+
+**Tier 3 -- OPA Rego defense-in-depth (AuthPolicy).** The AuthPolicy's OPA Rego checks the `x-mcp-toolname` and `x-mcp-servername` headers (injected by the ext_proc on `tools/call` requests) against the caller's JWT `resource_access` client roles. This catches unauthorized calls at the Authorino level, before the request reaches the broker. It is a defense-in-depth layer that does not depend on the broker's behavior.
 
 ## Key Implication for Platform Engineers
 
-MCPVirtualServers control what users **see**, not what they can **call**. They are not an access control mechanism. Authorization enforcement must be handled via AuthPolicy (layers 1-3). A MCPVirtualServer can restrict a user's view to a subset of authorized tools, but it cannot grant access to tools the wristband denies. Any user or LLM agent that knows a tool name can attempt to call it directly, bypassing the MCPVirtualServer filter -- the wristband (layer 3) is the final enforcement point for tool execution.
+All three tiers should be active for a production deployment. Tier 2 (broker intersection) and Tier 3 (OPA Rego) are complementary -- the broker enforces based on wristband + VirtualMCPServer state, while the Rego enforces based on JWT claims. Neither alone is sufficient: the broker cannot enforce without both headers present, and the Rego cannot enforce without the ext_proc injecting `x-mcp-toolname`.
+
+Tool permissions are managed in Keycloak as client roles on bearer-only clients that match MCPServerRegistration names. The OPA Rego reads these from the JWT's `resource_access` claim dynamically -- adding or removing tool permissions only requires Keycloak admin changes, not AuthPolicy edits.
 
 ## Further Reading
 

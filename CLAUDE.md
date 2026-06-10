@@ -74,12 +74,13 @@ The `deploy/` directory contains Kustomize overlays that build up the full stack
 | 08 | mcp-server | OpenShift MCP server deployment |
 | 08+ | github-mcp-server | GitHub MCP server with credentialRef and toolPrefix |
 | 09 | gateway-registration | Register MCP servers with gateway, rate limiting |
-| 10 | identity-auth | Keycloak realm, clients, user groups |
+| 10 | identity-auth | Keycloak realm, clients, user groups, MCP server client roles |
 | 11 | deploy-agent | Build and deploy the agent, gateway, and UI |
 | 12 | agent-test | Agent testing (admin + user configs) |
 | 13 | playground | Gen AI Studio Playground with external model and MCP tools |
 | 14 | vault | HashiCorp Vault integration |
 | 15 | observability | Cluster Observability Operator, Perses dashboards, Loki logging |
+| 16 | add-mcp-server | Add a third-party MCP server with per-tool access control |
 
 `deploy/base/` contains OpenShift operator subscriptions (RHOAI, Web Terminal). GPU Operator and NFD are installed in Module 1.
 
@@ -134,7 +135,8 @@ text = await self.call_model_validated(my_validator_fn, max_retries=3)
 - **ClusterLogForwarder requires three RBAC layers.** (1) CLO authorization: `collect-application-logs` and `collect-infrastructure-logs` ClusterRoleBindings. (2) Loki write: `logging-collector-logs-writer` ClusterRoleBinding. (3) TLS trust: ConfigMap with `service.beta.openshift.io/inject-cabundle: "true"`. Missing any one causes silent failures — no TLS errors, just 403s (missing write RBAC) or no collector pods (missing CLO authorization).
 - **AuthPolicy `issuerUrl` is a placeholder.** The repo manifest uses `KEYCLOAK_ISSUER` as a placeholder. Always apply the AuthPolicy with `sed` substitution: `sed "s|KEYCLOAK_ISSUER|${ACTUAL_URL}|g" authpolicy.yaml | oc apply -f -`. Applying the manifest directly overwrites the cluster's configured issuer URL with the literal string.
 - **Route hostnames must be single-level subdomains.** The OpenShift wildcard TLS certificate covers `*.apps.cluster-xxx` but NOT `*.mcp.apps.cluster-xxx`. Use `mcp-openshift.apps...` (single-level) instead of `openshift.mcp.apps...` (multi-level) in HTTPRoute and Route hostnames. Multi-level subdomains cause TLS verification failures in clients that don't skip verification (like the Claude Code MCP client).
-- **Wristband alone provides visibility, not execution enforcement.** The wristband (`x-authorized-tools`) filters `tools/list` but does not enforce `tools/call`. Full enforcement requires BOTH the wristband AND `x-mcp-virtualserver` header routing — the broker enforces the intersection. Our initial test was missing the `x-mcp-virtualserver` header in the AuthPolicy response. See [kuadrant/mcp-gateway#1079](https://github.com/Kuadrant/mcp-gateway/issues/1079) (closed — `x-mcp-virtualserver` works correctly through the Istio gateway).
+- **Wristband and VirtualMCPServer are discovery-only individually, but enforce together.** Either alone only filters `tools/list`. When BOTH are active, the broker enforces their intersection on `tools/call`. The OPA Rego in the AuthPolicy adds defense-in-depth at the Authorino level (before the broker) by checking `x-mcp-toolname` and `x-mcp-servername` headers against the JWT's `resource_access` client roles. Replace `allow := true` with conditional `allow { ... }` rules — Authorino injects its own `default allow := false` (do NOT add your own or you get "multiple default rules" error). The ext_proc strips the toolPrefix before setting `x-mcp-toolname`, so Rego should use unprefixed names. Use `arr[_] == val` instead of `val in arr` (the `in` keyword is not supported by the OPA version in Authorino). See the guide section 5.1.5.3 for the canonical pattern.
+- **Tool permissions via Keycloak `resource_access` client roles.** Create bearer-only Keycloak clients whose client IDs match MCPServerRegistration names exactly (e.g., `mcp-ecosystem/openshift-mcp-server` — Keycloak supports `/` in client IDs). Define client roles matching unprefixed tool names. The OPA Rego reads `input.auth.identity.resource_access[servername].roles` dynamically from the JWT, so tool permission changes only require Keycloak admin actions, not AuthPolicy edits.
 
 ## Common Mistakes
 

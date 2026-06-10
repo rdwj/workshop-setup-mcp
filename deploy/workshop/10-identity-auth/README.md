@@ -137,10 +137,12 @@ curl -sk "${KEYCLOAK_URL}/realms/master" | python3 -c \
 
 Run the setup script. It creates:
 - The `mcp-gateway` realm
-- A `mcp-gateway` client (service account enabled)
+- A `mcp-gateway` client (service account enabled, direct access grants)
 - Groups: `mcp-admins`, `mcp-users`, `mcp-github`
 - A `groups` client scope with a group-membership mapper
-- Assigns the `groups` scope to the `mcp-gateway` client
+- Bearer-only clients matching MCPServerRegistration names (`mcp-ecosystem/openshift-mcp-server`, `mcp-ecosystem/github-mcp-server`) with client roles for each tool
+- Workshop users `developer-a` (admin) and `developer-b` (user) with group and tool role assignments
+- Assigns `groups` and built-in `roles` scopes to the `mcp-gateway` client
 - Puts the `mcp-gateway` service account into `mcp-admins`
 
 ```bash
@@ -151,9 +153,10 @@ bash setup-keycloak-realm.sh
 The script is idempotent -- running it twice will not create duplicates.
 
 **Critical:** When requesting tokens, you **must** include `scope=openid groups`
-or the `groups` claim will be absent from the JWT. Without it, the AuthPolicy
-Rego policy sees no groups and defaults to user-level tools. This fails
-silently -- you get fewer tools with no error message.
+or the `groups` claim will be absent from the JWT. Without it, VirtualMCPServer
+routing fails silently -- users see an empty tool list. The `resource_access`
+claim (used by the Rego for tool enforcement) is included by default via the
+built-in `roles` scope and does not need to be explicitly requested.
 
 ## Step 8: Generate Wristband Signing Keys
 
@@ -322,29 +325,125 @@ curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
 ```
 Keycloak (mcp-gateway realm)
   |
-  |  JWT with groups claim
+  |  JWT with groups + resource_access claims
   v
 MCP Gateway (AuthPolicy)
   |
   |  1. Validate JWT (Authorino)
-  |  2. OPA Rego: groups -> allowed-tools
+  |  2. OPA Rego: resource_access -> allowed-tools + enforcement
   |  3. Sign wristband with allowed-tools claim
-  |  4. Strip Authorization header
+  |  4. Route to VirtualMCPServer by group
+  |  5. Strip Authorization header
   |
   v
 Broker -> MCP Server (uses ServiceAccount token, not user JWT)
 ```
 
-The OPA Rego policy in the AuthPolicy maps:
-- `mcp-admins` group -> 14 tools (full cluster access)
-- All other authenticated users -> 8 tools (read-only)
+Tool permissions are managed in Keycloak as client roles on bearer-only clients
+that match MCPServerRegistration names. The OPA Rego reads these from the JWT's
+`resource_access` claim dynamically -- adding or removing tool permissions only
+requires Keycloak changes, not AuthPolicy edits.
 
 ## What You Deployed
 
 - **RHBK Operator + Keycloak instance** in `keycloak` namespace with PostgreSQL backend
-- **mcp-gateway realm** with `mcp-admins` and `mcp-users` groups, a `groups` client scope, and a service account client
+- **mcp-gateway realm** with groups, bearer-only MCP server clients with per-tool client roles, workshop users with role assignments, and `groups`/`roles` client scopes
 - **ECDSA wristband signing keys** -- private key in `kuadrant-system`, public key in `mcp-system`
-- **AuthPolicy** on the MCP Gateway -- JWT validation, OPA Rego group-to-tool mapping, wristband issuance, and Authorization header stripping
+- **AuthPolicy** on the MCP Gateway -- JWT validation, OPA Rego `resource_access` enforcement, wristband issuance, VirtualMCPServer routing, and Authorization header stripping
+
+---
+
+## Additional Materials
+
+### OPA Rego Primer
+
+The AuthPolicy's `authorization` block uses [OPA Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) to evaluate tool access. Here are the patterns used in this module.
+
+**Rule evaluation.** Multiple rules with the same name (`allow`) are OR'd -- if any one matches, `allow` is true. Authorino provides `allow = false` as the default, so if no rule matches, the request is denied.
+
+```rego
+allow { condition_A }   # if A is true, allow
+allow { condition_B }   # OR if B is true, allow
+                        # otherwise: denied (Authorino's default)
+```
+
+**Conditional assignment.** Assigns a value only when the condition holds. Two assignments with the same name act as if/else:
+
+```rego
+tools := input.auth.identity.resource_access[key].roles {
+  input.auth.identity.resource_access[key]       # condition: key exists
+}
+tools := [] { not input.auth.identity.resource_access[key] }  # else: empty
+```
+
+**Array membership.** Check if a value exists in an array. Authorino's OPA does not support the `in` keyword -- use the iteration pattern instead:
+
+```rego
+# Correct:
+array[_] == value
+
+# Does NOT work in Authorino:
+# value in array
+```
+
+**Object lookup.** JWT claims are available at `input.auth.identity`. Request headers are at `input.request.headers["header-name"]`.
+
+**Authorino-specific constraints:**
+- Do not add `default allow := false` -- Authorino injects its own
+- Do not use the `in` keyword (`val in arr`) -- use `arr[_] == val`
+- Do not use `some x in collection` -- use `collection[_]`
+
+### Keycloak Client Roles Primer
+
+This module uses Keycloak **client roles** to manage per-tool permissions. Here is how the pieces fit together.
+
+**Bearer-only clients as role containers.** Each MCP server has a matching Keycloak client whose only purpose is to hold client roles. The client ID matches the MCPServerRegistration name exactly (e.g., `mcp-ecosystem/openshift-mcp-server`). Bearer-only clients cannot be used for login -- they only provide a namespace for roles.
+
+**Client roles represent tools.** Each tool exposed by an MCP server is a client role on that server's Keycloak client. Role names match the unprefixed tool names (e.g., `pods_list`, not `openshift_pods_list`). The gateway's `toolPrefix` is applied independently by the broker.
+
+**`resource_access` JWT claim.** When a user has client roles assigned, Keycloak includes them in the JWT under `resource_access.<client-id>.roles`:
+
+```json
+{
+  "resource_access": {
+    "mcp-ecosystem/openshift-mcp-server": {
+      "roles": ["pods_list", "pods_get", "namespaces_list"]
+    },
+    "mcp-ecosystem/github-mcp-server": {
+      "roles": ["search_code", "get_file_contents"]
+    }
+  }
+}
+```
+
+The OPA Rego reads this claim directly: `input.auth.identity.resource_access[servername].roles`. No hardcoded tool lists are needed in the AuthPolicy.
+
+**Managing permissions at scale.** To grant or revoke tool access:
+1. Open the Keycloak Admin Console
+2. Navigate to the MCP server's bearer-only client
+3. Go to the **Roles** tab to see available tool roles
+4. Navigate to **Users** > select a user > **Role Mappings**
+5. Assign or remove client roles from the MCP server client
+
+Alternatively, use the Keycloak Admin REST API:
+
+```bash
+# Assign roles to a user
+POST /admin/realms/{realm}/users/{user-id}/role-mappings/clients/{client-uuid}
+Body: [{"id": "<role-uuid>", "name": "pods_list"}, ...]
+
+# Remove roles from a user
+DELETE /admin/realms/{realm}/users/{user-id}/role-mappings/clients/{client-uuid}
+Body: [{"id": "<role-uuid>", "name": "pods_list"}, ...]
+```
+
+No AuthPolicy changes are needed -- the Rego reads permissions from the JWT at request time.
+
+**Client roles vs realm roles.** Realm roles (like `mcp-admin`) apply globally across all clients. Client roles are scoped to a specific client. For tool-level authorization, client roles are the right choice because each MCP server has its own set of tools.
+
+**Client roles vs groups.** In this module, both are used for different purposes:
+- **Groups** (`mcp-admins`, `mcp-users`) control VirtualMCPServer routing -- which tool *view* a user sees in `tools/list`
+- **Client roles** control tool *authorization* -- which tools a user can actually call via `tools/call`
 
 ---
 
