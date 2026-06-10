@@ -137,16 +137,19 @@ curl -sk "${KEYCLOAK_URL}/realms/master" | python3 -c \
 
 Run the setup script. It creates:
 - The `mcp-gateway` realm
-- A `mcp-gateway` client (service account enabled, direct access grants)
+- A `mcp-gateway` client (service account enabled, direct access grants) with an audience mapper
+- A `console-oidc` client (confidential, for OpenShift console OIDC login)
+- An `oc-cli` client (public, for OpenShift CLI OIDC login)
 - Groups: `mcp-admins`, `mcp-users`, `mcp-github`
 - A `groups` client scope with a group-membership mapper
 - Bearer-only clients matching MCPServerRegistration names (`mcp-ecosystem/openshift-mcp-server`, `mcp-ecosystem/github-mcp-server`) with client roles for each tool
 - Workshop users `developer-a` (admin) and `developer-b` (user) with group and tool role assignments
-- Assigns `groups` and built-in `roles` scopes to the `mcp-gateway` client
+- Assigns `groups` scope to the `mcp-gateway`, `console-oidc`, and `oc-cli` clients
+- Assigns built-in `roles` scope to the `mcp-gateway` client
 - Puts the `mcp-gateway` service account into `mcp-admins`
 
 ```bash
-export CTX KEYCLOAK_URL
+export CTX KEYCLOAK_URL CLUSTER_DOMAIN
 bash setup-keycloak-realm.sh
 ```
 
@@ -158,7 +161,89 @@ routing fails silently -- users see an empty tool list. The `resource_access`
 claim (used by the Rego for tool enforcement) is included by default via the
 built-in `roles` scope and does not need to be explicitly requested.
 
-## Step 8: Generate Wristband Signing Keys
+## Step 8: External OIDC (Optional)
+
+Configure OpenShift to use Keycloak as its external OIDC identity provider.
+After this step, Keycloak JWTs are valid Kubernetes API tokens --- users
+authenticate to both the OpenShift console and the MCP Gateway with the
+same Keycloak identity.
+
+> **Warning:** This replaces the built-in OAuth server. The `kubeadmin`
+> password login stops working. Ensure you have a ServiceAccount token
+> or bastion access before proceeding.
+
+### 8.1 Create the console client secret
+
+Retrieve the `console-oidc` client secret from Keycloak (it was created
+by the realm setup script) and store it in `openshift-config`:
+
+```bash
+CONSOLE_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=console-oidc" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+
+CONSOLE_SECRET=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${CONSOLE_UUID}/client-secret" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
+
+oc create secret generic console-oidc-secret \
+  -n openshift-config --context="$CTX" \
+  --from-literal=clientSecret="${CONSOLE_SECRET}"
+```
+
+### 8.2 Patch the Authentication CR
+
+```bash
+KEYCLOAK_ISSUER="${KEYCLOAK_URL}/realms/mcp-gateway"
+sed -e "s|KEYCLOAK_ISSUER|${KEYCLOAK_ISSUER}|g" \
+    -e "s|CONSOLE_OIDC_SECRET|console-oidc-secret|g" \
+    authentication-cr.yaml \
+  | oc apply --context="$CTX" -f -
+```
+
+Wait for the `kube-apiserver` cluster operator to stabilize (10--15
+minutes as it rolls across all control plane nodes):
+
+```bash
+oc get co kube-apiserver authentication --context="$CTX" -w
+```
+
+Both should show `AVAILABLE=True`, `PROGRESSING=False`, `DEGRADED=False`.
+
+### 8.3 Create RBAC for Keycloak groups
+
+Map Keycloak groups to Kubernetes ClusterRoles:
+
+```bash
+oc adm policy add-cluster-role-to-group cluster-admin mcp-admins --context="$CTX"
+oc adm policy add-cluster-role-to-group view mcp-users --context="$CTX"
+```
+
+### 8.4 Verify
+
+Test that a Keycloak JWT works as a K8s API token:
+
+```bash
+DEV_A_TOKEN=$(curl -sk -X POST "${KEYCLOAK_URL}/realms/mcp-gateway/protocol/openid-connect/token" \
+  -d "client_id=mcp-gateway&client_secret=${CLIENT_SECRET}&grant_type=password&username=developer-a&password=developer-a&scope=openid groups" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+oc whoami --token="$DEV_A_TOKEN" --server="https://api.${CLUSTER_DOMAIN#apps.}:6443"
+# Expected: developer-a
+```
+
+Open the console URL in a browser --- it should redirect to Keycloak
+for login. Log in as `developer-a`.
+
+> **Note:** Per-user identity does not yet flow through to backend MCP
+> server K8s API calls. The MCP Gateway strips the Authorization header
+> before forwarding to backends (the OpenShift MCP server uses its
+> ServiceAccount token). Per-user MCP identity requires the MCP server's
+> token exchange feature, which is a future enhancement. Tool-level
+> access control (which tools each user can see and call) is still
+> enforced per-user via the wristband and VirtualMCPServer mechanism.
+
+## Step 9: Generate Wristband Signing Keys
 
 The wristband mechanism works as follows:
 1. Authorino validates the Keycloak JWT
@@ -186,7 +271,7 @@ oc get mcpgatewayextension mcp-gateway -n mcp-system --context="$CTX" \
 # Expected: {"generate":"Disabled","secretName":"wristband-public-key"}
 ```
 
-## Step 9: Apply the AuthPolicy
+## Step 10: Apply the AuthPolicy
 
 The AuthPolicy configures:
 - JWT authentication against the Keycloak issuer
@@ -223,7 +308,7 @@ for c in json.load(sys.stdin):
     module strips the `Authorization` header before forwarding, ensuring
     the MCP server uses its ServiceAccount token instead.
 
-## Step 10: Test Authenticated Access
+## Step 11: Test Authenticated Access
 
 Get a token as the `mcp-gateway` client (admin group):
 
@@ -289,7 +374,7 @@ oc exec -n mcp-system deploy/mcp-gateway --context="$CTX" -- \
 
 **Expected:** `HTTP 401`
 
-## Step 11: Extend Token Lifetime for the Workshop
+## Step 12: Extend Token Lifetime for the Workshop
 
 Default Keycloak access token lifetime is 5 minutes. For a workshop, set it
 to 1 hour so students don't have to keep refreshing:

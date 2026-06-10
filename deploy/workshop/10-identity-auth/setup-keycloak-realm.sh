@@ -5,9 +5,12 @@
 # Creates:
 #   - mcp-gateway realm
 #   - mcp-gateway client (service account enabled, direct access grants)
+#   - console-oidc client (confidential, for OpenShift console OIDC login)
+#   - oc-cli client (public, for OpenShift CLI OIDC login)
+#   - Audience mapper on mcp-gateway client (for K8s API token validation)
 #   - Groups: mcp-admins, mcp-users, mcp-github
 #   - "groups" client scope with oidc-group-membership-mapper
-#   - Assigns groups scope to the mcp-gateway client
+#   - Assigns groups scope to mcp-gateway, console-oidc, and oc-cli clients
 #   - Assigns built-in "roles" scope to the mcp-gateway client
 #   - Puts mcp-gateway service account into mcp-admins
 #   - Bearer-only MCP server clients with tool roles
@@ -19,11 +22,13 @@
 # Usage:
 #   export CTX="default/api-cluster-.../kube:admin"
 #   export KEYCLOAK_URL="https://keycloak-keycloak.apps.cluster-..."
+#   export CLUSTER_DOMAIN="apps.cluster-..."
 #   bash setup-keycloak-realm.sh
 set -euo pipefail
 
 : "${CTX:?Set CTX to your kube context}"
 : "${KEYCLOAK_URL:?Set KEYCLOAK_URL to your Keycloak base URL}"
+: "${CLUSTER_DOMAIN:?Set CLUSTER_DOMAIN to your cluster apps domain}"
 
 ADMIN_USER=$(oc get secret keycloak-initial-admin -n keycloak --context="$CTX" -o jsonpath='{.data.username}' | base64 -d)
 ADMIN_PASS=$(oc get secret keycloak-initial-admin -n keycloak --context="$CTX" -o jsonpath='{.data.password}' | base64 -d)
@@ -68,6 +73,68 @@ HTTP=$(curl -sk -o /dev/null -w "%{http_code}" -X PUT \
   -d '{"clientId":"mcp-gateway","enabled":true,"serviceAccountsEnabled":true,"standardFlowEnabled":false,"directAccessGrantsEnabled":true}')
 case "$HTTP" in
   204) echo "  Enabled direct access grants" ;;
+  *)   echo "  ERROR: HTTP ${HTTP}" ;;
+esac
+
+echo "--- Adding audience mapper to mcp-gateway client ---"
+HTTP=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${CLIENT_UUID}/protocol-mappers/models" \
+  -d '{
+    "name": "aud-mcp-gateway",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-audience-mapper",
+    "config": {
+      "included.client.audience": "mcp-gateway",
+      "access.token.claim": "true",
+      "id.token.claim": "false"
+    }
+  }')
+case "$HTTP" in
+  201) echo "  Created audience mapper" ;;
+  409) echo "  Mapper exists" ;;
+  *)   echo "  HTTP ${HTTP}" ;;
+esac
+
+echo "--- Creating console-oidc client ---"
+HTTP=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients" \
+  -d "{
+    \"clientId\": \"console-oidc\",
+    \"enabled\": true,
+    \"publicClient\": false,
+    \"standardFlowEnabled\": true,
+    \"directAccessGrantsEnabled\": false,
+    \"serviceAccountsEnabled\": false,
+    \"redirectUris\": [\"https://console-openshift-console.${CLUSTER_DOMAIN}/auth/callback\"],
+    \"webOrigins\": [\"https://console-openshift-console.${CLUSTER_DOMAIN}\"]
+  }")
+case "$HTTP" in
+  201) echo "  Created client" ;;
+  409) echo "  Client exists" ;;
+  *)   echo "  ERROR: HTTP ${HTTP}" ;;
+esac
+
+echo "--- Creating oc-cli client ---"
+HTTP=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients" \
+  -d '{
+    "clientId": "oc-cli",
+    "enabled": true,
+    "publicClient": true,
+    "standardFlowEnabled": true,
+    "directAccessGrantsEnabled": false,
+    "serviceAccountsEnabled": false,
+    "redirectUris": ["http://localhost:8080"]
+  }')
+case "$HTTP" in
+  201) echo "  Created client" ;;
+  409) echo "  Client exists" ;;
   *)   echo "  ERROR: HTTP ${HTTP}" ;;
 esac
 
@@ -116,6 +183,25 @@ GROUPS_SCOPE_ID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
 curl -sk -X PUT -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${CLIENT_UUID}/default-client-scopes/${GROUPS_SCOPE_ID}"
 echo "  Done"
+
+echo "--- Assigning 'groups' scope to console-oidc and oc-cli clients ---"
+CONSOLE_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=console-oidc" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
+OC_CLI_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=oc-cli" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
+
+if [ -n "$CONSOLE_UUID" ]; then
+  curl -sk -X PUT -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${CONSOLE_UUID}/default-client-scopes/${GROUPS_SCOPE_ID}"
+  echo "  console-oidc: assigned"
+fi
+if [ -n "$OC_CLI_UUID" ]; then
+  curl -sk -X PUT -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${OC_CLI_UUID}/default-client-scopes/${GROUPS_SCOPE_ID}"
+  echo "  oc-cli: assigned"
+fi
 
 echo "--- Assigning built-in 'roles' scope to mcp-gateway client ---"
 ROLES_SCOPE_ID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \

@@ -74,7 +74,7 @@ The `deploy/` directory contains Kustomize overlays that build up the full stack
 | 08 | mcp-server | OpenShift MCP server deployment |
 | 08+ | github-mcp-server | GitHub MCP server with credentialRef and toolPrefix |
 | 09 | gateway-registration | Register MCP servers with gateway, rate limiting |
-| 10 | identity-auth | Keycloak realm, clients, user groups, MCP server client roles |
+| 10 | identity-auth | Keycloak realm, clients, user groups, MCP server client roles, External OIDC |
 | 11 | deploy-agent | Build and deploy the agent, gateway, and UI |
 | 12 | agent-test | Agent testing (admin + user configs) |
 | 13 | playground | Gen AI Studio Playground with external model and MCP tools |
@@ -141,6 +141,8 @@ text = await self.call_model_validated(my_validator_fn, max_retries=3)
 - **Sail operator reconciles meshConfig.extensionProviders away.** Do not patch the Istio CR to add custom access log providers — the Sail operator will revert the change. Use an EnvoyFilter instead, targeting the gateway pod via `workloadSelector`. The EnvoyFilter injects a JSON access log directly into the Envoy HTTP connection manager and is not reconciled by the operator.
 - **Kuadrant uses WASM plugin, not ext_authz.** The `%DYNAMIC_METADATA(envoy.filters.http.ext_authz:...)%` access log format doesn't work because Kuadrant's Authorino integration runs as a WASM plugin (`extensions.istio.io/wasmplugin/...`), not a direct ext_authz filter. To capture the authenticated username in access logs, inject it as a request header (`x-auth-username`) in the AuthPolicy's `response.success.headers` and capture it with `%REQ(x-auth-username)%` in the EnvoyFilter.
 - **Perses Loki datasource requires a Perses API secret and RBAC.** The `secret` field in the datasource's HTTPProxy spec references a Perses secret (created via the Perses API, not a Kubernetes Secret). The secret must contain `tlsConfig.caFile: /ca/service-ca.crt` and `authorization.credentialsFile: /var/run/secrets/kubernetes.io/serviceaccount/token`. The Perses ServiceAccount also needs a ClusterRoleBinding for `loki.grafana.com` `application` resources with `get` verb. Only the `LogsTable` panel supports Loki in the Red Hat build of Perses (COO 1.4 Tech Preview) — `LokiTimeSeriesQuery` with `TimeSeriesChart` is not supported.
+- **External OIDC invalidates cached kubeadmin tokens.** Setting `type: OIDC` on the Authentication CR removes the built-in OAuth server. Any cached kubeadmin OAuth tokens (from `oc login`) become invalid immediately. Access the cluster via a ServiceAccount token (from the sandbox provisioning) or the bastion host's `system:admin` kubeconfig. The kubeadmin password itself still works for break-glass if you reconfigure back to the integrated OAuth.
+- **Removing the Authorization header stripping breaks MCP tools/call.** The MCP Gateway broker routes `tools/call` requests back through the Istio gateway internally. If the user's JWT is present in the Authorization header, the broker's internal initialize request to the backend MCP server returns 4xx (the request never reaches the MCP server pod). The header stripping is load-bearing for the broker's internal routing. Per-user K8s identity for MCP tool calls requires the OpenShift MCP server's `token_exchange_strategy`, not header pass-through.
 
 ## Common Mistakes
 
