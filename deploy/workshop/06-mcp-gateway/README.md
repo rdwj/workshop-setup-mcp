@@ -128,6 +128,15 @@ The `mcps` listener handles internal broker-to-server communication (HTTP, no
 TLS). The `https` listener provides external client access with TLS
 termination.
 
+!!! important "Single-Level Subdomain Pattern"
+
+    The listener hostname uses `*.<CLUSTER_DOMAIN>` (not `*.mcp.<CLUSTER_DOMAIN>`)
+    because the OpenShift wildcard TLS certificate only covers single-level
+    subdomains like `*.apps.cluster-xxx`. Multi-level subdomains like
+    `*.mcp.apps.cluster-xxx` cause TLS verification failures. HTTPRoutes use
+    hostnames like `mcp-openshift.<CLUSTER_DOMAIN>` instead of
+    `openshift.mcp.<CLUSTER_DOMAIN>` for this reason.
+
 ## Step 6: Create the MCPGatewayExtension
 
 The MCPGatewayExtension deploys the MCP broker and attaches it to the Gateway's
