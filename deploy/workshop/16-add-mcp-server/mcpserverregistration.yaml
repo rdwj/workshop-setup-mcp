@@ -1,0 +1,11 @@
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: calculus-helper
+  namespace: mcp-ecosystem
+spec:
+  toolPrefix: calculus_
+  path: /mcp/
+  targetRef:
+    kind: HTTPRoute
+    name: calculus-helper
