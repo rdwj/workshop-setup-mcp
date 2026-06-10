@@ -151,6 +151,29 @@ spec:
           width: 12
           x: 12
           "y": 0
+    - kind: Grid
+      spec:
+        display:
+          title: MCP Tool Activity (Logs)
+        items:
+        - content:
+            $ref: '#/spec/panels/tool_activity_log'
+          height: 10
+          width: 24
+          x: 0
+          "y": 0
+        - content:
+            $ref: '#/spec/panels/tools_by_user'
+          height: 8
+          width: 12
+          x: 0
+          "y": 10
+        - content:
+            $ref: '#/spec/panels/tools_by_tool'
+          height: 8
+          width: 12
+          x: 12
+          "y": 10
     panels:
       pod_status:
         kind: Panel
@@ -406,3 +429,54 @@ spec:
                 spec:
                   query: histogram_quantile(0.95, sum by (evaluator_name, le) (rate(auth_server_evaluator_duration_seconds_bucket{namespace="mcp-system"}[$__rate_interval])))
                   seriesNameFormat: "{{evaluator_name}}"
+      tool_activity_log:
+        kind: Panel
+        spec:
+          display:
+            name: Tool Call Activity Log
+          plugin:
+            kind: LogsTable
+            spec:
+              showTime: true
+              enableDetails: true
+          queries:
+          - kind: LogQuery
+            spec:
+              plugin:
+                kind: LokiLogQuery
+                spec:
+                  query: '{kubernetes_namespace_name="mcp-system", kubernetes_container_name="istio-proxy"} | json | line_format "{{.message}}" | json | mcp_toolname != "-" | mcp_toolname != "" | line_format "{{.username}} → {{.mcp_servername}}/{{.mcp_toolname}} [{{.response_code}}] {{.duration_ms}}ms"'
+      tools_by_user:
+        kind: Panel
+        spec:
+          display:
+            name: Tool Calls by User
+          plugin:
+            kind: LogsTable
+            spec:
+              showTime: true
+              enableDetails: true
+          queries:
+          - kind: LogQuery
+            spec:
+              plugin:
+                kind: LokiLogQuery
+                spec:
+                  query: '{kubernetes_namespace_name="mcp-system", kubernetes_container_name="istio-proxy"} | json | line_format "{{.message}}" | json | mcp_toolname != "-" | mcp_toolname != "" | line_format "{{.username}} [{{.response_code}}] {{.mcp_toolname}}"'
+      tools_by_tool:
+        kind: Panel
+        spec:
+          display:
+            name: Tool Calls by Tool
+          plugin:
+            kind: LogsTable
+            spec:
+              showTime: true
+              enableDetails: true
+          queries:
+          - kind: LogQuery
+            spec:
+              plugin:
+                kind: LokiLogQuery
+                spec:
+                  query: '{kubernetes_namespace_name="mcp-system", kubernetes_container_name="istio-proxy"} | json | line_format "{{.message}}" | json | mcp_toolname != "-" | mcp_toolname != "" | line_format "{{.mcp_toolname}} ← {{.username}} [{{.response_code}}] {{.duration_ms}}ms"'

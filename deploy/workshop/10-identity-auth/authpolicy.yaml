@@ -88,18 +88,16 @@ spec:
             x-mcp-virtualserver:
               plain:
                 expression: '"mcp-admins" in auth.identity.groups ? "mcp-system/admin-tools" : "mcp-system/user-tools"'
+            # Inject the authenticated username for access log capture.
+            x-auth-username:
+              plain:
+                selector: auth.identity.preferred_username
             # Strip the Authorization header before forwarding to the backend.
             # Without this, the OpenShift MCP server uses the Keycloak JWT
             # for K8s API auth instead of its ServiceAccount token, and fails.
             authorization:
               plain:
                 value: ""
-          dynamicMetadata:
-            user-identity:
-              json:
-                properties:
-                  username:
-                    selector: auth.identity.preferred_username
         unauthenticated:
           message:
             value: "Authentication required."

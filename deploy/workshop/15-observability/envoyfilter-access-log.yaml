@@ -1,0 +1,45 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: mcp-json-access-log
+  namespace: mcp-system
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: mcp-gateway
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: MERGE
+      value:
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          access_log:
+          - name: envoy.access_loggers.file
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
+              path: /dev/stdout
+              log_format:
+                json_format:
+                  timestamp: "%START_TIME%"
+                  method: "%REQ(:METHOD)%"
+                  path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+                  protocol: "%PROTOCOL%"
+                  response_code: "%RESPONSE_CODE%"
+                  response_flags: "%RESPONSE_FLAGS%"
+                  bytes_received: "%BYTES_RECEIVED%"
+                  bytes_sent: "%BYTES_SENT%"
+                  duration_ms: "%DURATION%"
+                  authority: "%REQ(:AUTHORITY)%"
+                  upstream_host: "%UPSTREAM_HOST%"
+                  upstream_cluster: "%UPSTREAM_CLUSTER%"
+                  request_id: "%REQ(X-REQUEST-ID)%"
+                  username: "%REQ(x-auth-username)%"
+                  mcp_toolname: "%REQ(x-mcp-toolname)%"
+                  mcp_servername: "%REQ(x-mcp-servername)%"

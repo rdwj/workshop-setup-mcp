@@ -44,7 +44,9 @@ oc patch istio openshift-gateway -n openshift-ingress --context="$CTX" --type=me
                   "upstream_host": "%UPSTREAM_HOST%",
                   "upstream_cluster": "%UPSTREAM_CLUSTER%",
                   "request_id": "%REQ(X-REQUEST-ID)%",
-                  "username": "%DYNAMIC_METADATA(envoy.filters.http.ext_authz:user-identity:username)%"
+                  "username": "%REQ(x-auth-username)%",
+                  "mcp_toolname": "%REQ(x-mcp-toolname)%",
+                  "mcp_servername": "%REQ(x-mcp-servername)%"
                 }
               }
             }

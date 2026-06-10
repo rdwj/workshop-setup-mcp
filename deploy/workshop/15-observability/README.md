@@ -251,30 +251,47 @@ for t in json.load(sys.stdin)['data']['activeTargets']:
 
 You should see all targets reporting `up`.
 
-## Step 10: Enable Access Logging (Optional)
+## Step 10: Enable Access Logging
 
-For per-user request tracking via Loki, enable structured JSON access
-logging on the Istio gateway. This patches the `openshift-gateway` Istio
-CR to add a custom access log provider that captures the authenticated
-username from Authorino dynamic metadata.
+Enable structured JSON access logging on the Istio gateway for per-user,
+per-tool request tracking via Loki. An EnvoyFilter injects a custom JSON
+access log format that captures the authenticated username, MCP tool name,
+and MCP server name from request headers set by Authorino and the ext_proc.
 
 ```bash
-./patch-istio-access-log.sh "$CTX"
-oc apply -f mcp-gateway-access-logging.yaml --context="$CTX"
+oc apply -f envoyfilter-access-log.yaml --context="$CTX"
 oc rollout restart deployment/mcp-gateway-data-science-gateway-class \
   -n mcp-system --context="$CTX"
 ```
 
-> **Note:** The gateway pod is managed by the `openshift-gateway` Istio
-> revision (v1.26.2) in `openshift-ingress`, not the `default` Istio in
-> `istio-system`. The patch script targets the correct Istio CR.
+Each access log entry includes:
 
-> **Note:** The `mcp-system` namespace must have the label
-> `istio-discovery=enabled` for the Telemetry resource to take effect:
+| Field | Source | Example |
+|-------|--------|---------|
+| `username` | Authorino dynamic metadata | `developer-a` |
+| `mcp_toolname` | `x-mcp-toolname` header (ext_proc) | `list_pods` |
+| `mcp_servername` | `x-mcp-servername` header (ext_proc) | `openshift-mcp-server` |
+| `response_code` | Envoy | `200`, `403` |
+| `duration_ms` | Envoy | `42` |
+
+The `mcp_toolname` and `mcp_servername` fields are only present on
+`tools/call` requests (logged as `"-"` on other request types). The
+dashboard's **MCP Tool Activity** panels use these fields to show which
+developer called which tool, when, and whether it succeeded.
+
+> **Note:** The EnvoyFilter targets the gateway pod via `workloadSelector`
+> matching `gateway.networking.k8s.io/gateway-name: mcp-gateway`. It adds
+> a JSON access logger alongside the default Envoy text-format log. The
+> `mcp-system` namespace must have `istio-discovery=enabled`:
 >
 > ```bash
 > oc label namespace mcp-system istio-discovery=enabled --context="$CTX"
 > ```
+>
+> **Why EnvoyFilter?** The Sail operator reconciles `meshConfig.extensionProviders`
+> out of the Istio CR, so the Telemetry + extension provider approach from
+> earlier Istio versions doesn't work. The EnvoyFilter injects the access
+> log directly into the Envoy HTTP connection manager.
 
 ## Verify
 
@@ -352,11 +369,11 @@ for r in json.load(sys.stdin)['data']['result']:
 | ClusterLogForwarder `collector` | `openshift-logging` | Routes application and infrastructure logs to LokiStack |
 | UIPlugin `monitoring` | (cluster-wide) | Enables Perses dashboards in the OpenShift console |
 | PersesDatasource `loki-mcp-logs` | `openshift-logging` | Connects Perses to the LokiStack application log API |
-| PersesDashboard `mcp-ecosystem-overview` | `openshift-operators` | Metrics dashboard for MCP Gateway, MCP servers, and Keycloak |
+| PersesDashboard `mcp-ecosystem-overview` | `openshift-operators` | Metrics + logs dashboard (Prometheus panels for infrastructure, Loki panels for per-user tool activity) |
 | ServiceMonitor `authorino-metrics` | `kuadrant-system` | Scrapes Authorino auth evaluator metrics |
 | ServiceMonitor `limitador-metrics` | `kuadrant-system` | Scrapes Limitador rate-limit metrics |
 | PodMonitor `mcp-gateway-envoy` | `mcp-system` | Scrapes Envoy gateway Istio/Kuadrant metrics |
-| Telemetry `mcp-gateway-access-logging` | `mcp-system` | Enables structured access logging on the gateway |
+| EnvoyFilter `mcp-json-access-log` | `mcp-system` | JSON access logging with username, tool name, and server name |
 
 ---
 
