@@ -73,3 +73,9 @@ site/
 
 # Added by ggshield
 .cache_ggshield
+
+# Agent-run workshop answers (contains credentials and run decisions)
+workshop-answers.yaml
+
+# Agent run notes (review artifacts, not for commit)
+workshop-run-notes-*.md

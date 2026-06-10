@@ -1,0 +1,22 @@
+# Backend route on an internal *.mcp.local hostname (backend plane).
+# Only the broker's hairpin reaches it; clients use the gateway URL.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: calculus-helper
+  namespace: mcp-ecosystem
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      namespace: mcp-system
+      sectionName: mcps
+  hostnames:
+    - "calculus-mcp-server.mcp.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+      backendRefs:
+        - name: calculus-helper
+          port: 8080

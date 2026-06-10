@@ -1,0 +1,13 @@
+# In the gateway-level AuthPolicy response rules
+spec:
+  rules:
+    response:
+      success:
+        headers:
+          x-mcp-virtualserver:
+            expression: |
+              auth.identity.groups.exists(g, g == 'team-leads')
+                ? '<namespace>/lead-tools'
+                : auth.identity.groups.exists(g, g == 'team-ops')
+                  ? '<namespace>/ops-tools'
+                  : '<namespace>/dev-tools'

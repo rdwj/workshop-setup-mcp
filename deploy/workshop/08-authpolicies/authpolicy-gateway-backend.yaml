@@ -1,0 +1,61 @@
+# Backend-plane catch-all AuthPolicy — attaches to the `mcps` listener.
+#
+# This is the fail-closed DEFAULT for the hairpin leg (broker -> backend MCP
+# servers). Kuadrant `defaults` semantics: any per-route AuthPolicy attached
+# to a backend HTTPRoute atomically REPLACES this policy for that route.
+#
+#   - Routes WITHOUT their own policy get: JWT required, tool-call
+#     enforcement, Authorization stripped (the safe legacy
+#     behavior — backend sees no user credential, servers fall back to
+#     their ServiceAccount).
+#   - openshift-mcp-server route: overridden by
+#     authpolicy-openshift-route-passthrough.yaml (per-user K8s identity)
+#     or authpolicy-openshift-route-sa.yaml (shared SA).
+#   - github-mcp-server route: overridden by
+#     authpolicy-github-route-vault.yaml (per-user PAT injection).
+#
+# Every new MCPServerRegistration should ship with a per-route policy; this
+# default just guarantees nothing is open or leaking user JWTs in the
+# meantime.
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: mcp-gateway-backend-auth
+  namespace: mcp-system
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    sectionName: mcps
+  defaults:
+    strategy: atomic
+    rules:
+      authentication:
+        keycloak-jwt:
+          jwt:
+            issuerUrl: KEYCLOAK_ISSUER
+          metrics: true
+      authorization:
+        tool-roles:
+          opa:
+            rego: |
+              allow { not input.request.headers["x-mcp-toolname"] }
+
+              allow {
+                servername := input.request.headers["x-mcp-servername"]
+                toolname := input.request.headers["x-mcp-toolname"]
+                input.auth.identity.resource_access[servername].roles[_] == toolname
+              }
+          metrics: true
+      response:
+        success:
+          headers:
+            # Safe default: do not forward the user's Keycloak JWT to
+            # backends that haven't declared how they handle credentials.
+            authorization:
+              plain:
+                value: ""
+        unauthenticated:
+          message:
+            value: "Authentication required."

@@ -1,0 +1,96 @@
+# Client-plane AuthPolicy — attaches to the `mcp` listener (client entry).
+#
+# The gateway-plane policy for the client entry listener. Note there is
+# deliberately NO Authorization header stripping block here. Stripping is a per-server concern and now lives in the per-route
+# policies (authpolicy-gateway-backend.yaml provides the safe default).
+# The user's JWT must survive this leg so the broker can forward it on the
+# hairpin leg, where per-route policies consume it (Vault login, K8s
+# passthrough) or strip it.
+#
+# Responsibilities on this leg:
+#   1. JWT authentication (Keycloak)
+#   2. allowed_tools wristband (tools/list filtering by the broker)
+#   3. tools/call enforcement via x-mcp-toolname / x-mcp-servername
+#      (validated on the dev cluster: these headers are injected by
+#      ext_proc on the HAIRPIN leg, so the hard 403 comes from the
+#      per-route policy; this copy is defense in depth)
+#   4. VirtualMCPServer routing by group
+#   5. x-auth-username injection for access logs
+#
+# NOTE: this policy uses the IMPLICIT rules form (spec.rules), not
+# spec.defaults. The AuthPolicy CRD rejects spec.when combined with
+# spec.defaults ("Implicit and explicit defaults are mutually exclusive"),
+# and the /.well-known exemption needs spec.when. Implicit form is fine
+# here because no route-level policy ever overrides the client plane.
+#
+# Replace KEYCLOAK_ISSUER via sed before applying (never apply the literal
+# placeholder — see Lessons Learned).
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: mcp-gateway-client-auth
+  namespace: mcp-system
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    sectionName: mcp
+  when:
+    # OAuth protected-resource discovery must be reachable pre-auth.
+    - predicate: "!request.path.contains('/.well-known')"
+  rules:
+    authentication:
+      keycloak-jwt:
+        jwt:
+          issuerUrl: KEYCLOAK_ISSUER
+        metrics: true
+    authorization:
+      tool-roles:
+        opa:
+          allValues: true
+          rego: |
+            allowed_tools := json.marshal({k: v.roles |
+              v := input.auth.identity.resource_access[k]
+              startswith(k, "mcp-ecosystem/")
+            })
+
+            allow { not input.request.headers["x-mcp-toolname"] }
+
+            allow {
+              servername := input.request.headers["x-mcp-servername"]
+              toolname := input.request.headers["x-mcp-toolname"]
+              input.auth.identity.resource_access[servername].roles[_] == toolname
+            }
+        metrics: true
+    response:
+      success:
+        headers:
+          x-authorized-tools:
+            wristband:
+              issuer: http://authorino-authorino-oidc.kuadrant-system.svc.cluster.local:8083/mcp-system/mcp-gateway-client-auth/x-authorized-tools
+              signingKeyRefs:
+                - name: wristband-signing-key
+                  algorithm: ES256
+              tokenDuration: 300
+              customClaims:
+                allowed-tools:
+                  selector: auth.authorization.tool-roles.allowed_tools
+                groups:
+                  selector: auth.identity.groups
+            metrics: true
+          x-mcp-virtualserver:
+            plain:
+              expression: '"mcp-admins" in auth.identity.groups ? "mcp-system/admin-tools" : "mcp-system/user-tools"'
+          x-auth-username:
+            plain:
+              selector: auth.identity.preferred_username
+          # NOTE: no `authorization: plain: value: ""` block here.
+          # The user JWT flows to the broker intact. Per-server handling
+          # happens on the backend plane.
+      unauthenticated:
+        headers:
+          WWW-Authenticate:
+            value: Bearer realm="mcp-gateway"
+        message:
+          value: "Authentication required."

@@ -1,0 +1,51 @@
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPVirtualServer
+metadata:
+  name: admin-tools
+  namespace: mcp-system
+spec:
+  description: Full tools for administrators (OpenShift + GitHub)
+  tools:
+    # OpenShift MCP server (prefix: openshift_) — verify against tools/list
+    # after deployment; the set depends on config.toml (read_only=false)
+    - openshift_configuration_view
+    - openshift_events_list
+    - openshift_namespaces_list
+    - openshift_nodes_log
+    - openshift_nodes_stats_summary
+    - openshift_nodes_top
+    - openshift_pods_get
+    - openshift_pods_list
+    - openshift_pods_list_in_namespace
+    - openshift_pods_log
+    - openshift_pods_top
+    - openshift_projects_list
+    - openshift_resources_get
+    - openshift_resources_list
+    - openshift_resources_create_or_update
+    # GitHub MCP server (25 tools, prefix: github_)
+    - github_get_commit
+    - github_get_file_contents
+    - github_get_label
+    - github_get_latest_release
+    - github_get_me
+    - github_get_release_by_tag
+    - github_get_tag
+    - github_get_team_members
+    - github_get_teams
+    - github_issue_read
+    - github_list_branches
+    - github_list_commits
+    - github_list_issue_types
+    - github_list_issues
+    - github_list_pull_requests
+    - github_list_releases
+    - github_list_repository_collaborators
+    - github_list_tags
+    - github_pull_request_read
+    - github_search_code
+    - github_search_commits
+    - github_search_issues
+    - github_search_pull_requests
+    - github_search_repositories
+    - github_search_users

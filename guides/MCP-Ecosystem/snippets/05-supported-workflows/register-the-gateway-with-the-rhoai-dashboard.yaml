@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gen-ai-aa-mcp-servers
+  namespace: redhat-ods-applications
+data:
+  MCP-Gateway: |
+    {
+      "url": "https://<mcp-gateway-route>/mcp",
+      "description": "MCP Gateway with tools"
+    }

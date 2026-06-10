@@ -1,6 +1,6 @@
 # Per-User MCP Identity: Investigation
 
-Status: **Open investigation** -- tool-level access control works; backend identity pass-through does not.
+Status: **Resolved (2026-06-10)** -- root cause and fix deployed/verified on cluster-n7pd5. Full end-to-end description: [`per-user-mcp-identity-fix.md`](per-user-mcp-identity-fix.md). The fix was folded into the restructured workshop core path (see [`workshop-restructure-plan.md`](workshop-restructure-plan.md)): its manifests now live in the workshop core path: Gateway/client-route in [`02-mcp-gateway`](../deploy/workshop/02-mcp-gateway/), backend routes in [`05-gateway-registration`](../deploy/workshop/05-gateway-registration/), AuthPolicies in [`08-authpolicies`](../deploy/workshop/08-authpolicies/), Vault injection in [`11-vault`](../deploy/workshop/11-vault/). See also [Resolution](#resolution) below.
 
 ---
 
@@ -58,6 +58,10 @@ Notes:
 ---
 
 ## Architecture Constraint
+
+> **Superseded (2026-06-10):** This constraint is an artifact of the
+> deployment layout, not of the gateway architecture. See
+> [Resolution](#resolution).
 
 The core constraint is the broker's internal routing loop. The broker forwards `tools/call` back through the Istio gateway's internal service. Authorino and ext_proc run on both public and private paths. Any header manipulation in the AuthPolicy response affects both paths, making it impossible to pass credentials to backends without also affecting the broker's internal traffic.
 
@@ -119,13 +123,56 @@ The customer uses Entra ID, not Keycloak. Relevant:
 
 ---
 
+## Resolution
+
+The "architecture constraint" above was self-inflicted by two deployment
+decisions that deviated from the intended design (guide sections 5.1.4.1,
+5.1.5, 5.1.6.7; upstream Kuadrant `vault-token-exchange` guide):
+
+1. **One atomic Gateway-wide AuthPolicy carried per-server concerns.** The
+   Authorization stripping is a per-server decision, but it was applied at
+   the Gateway (`sectionName: mcps`), destroying the user JWT on every leg
+   for every backend. The designed mechanism is **per-route AuthPolicies**
+   on each backend HTTPRoute: the broker forwards the user's JWT on the
+   hairpin leg, and the per-route policy consumes it there — stripping it
+   for the OpenShift server (SA mode), passing it through (per-user K8s
+   identity with External OIDC), or exchanging it at Vault for a per-user
+   GitHub PAT. The upstream Vault guide's policy reads
+   `request.headers["authorization"]` on the backend route — confirming the
+   user JWT is *supposed* to be present on the internal leg.
+
+2. **Clients entered through backend-server hostnames.** With no
+   client-facing listener/Route, the client leg and hairpin leg shared one
+   listener, hostname, and route, so no policy could distinguish them. The
+   fix separates the planes: a client `mcp` listener +
+   `mcp-gateway.<domain>` Route carrying the JWT/wristband/VirtualMCPServer
+   policy, and the `mcps` listener restricted to internal `*.mcp.local`
+   backend routes with per-route policies (plus a fail-closed catch-all
+   default that strips credentials for unconfigured routes).
+
+The failed Attempt #2 (removing the stripping) broke precisely because the
+single shared path applied the change to both legs at once. Note on the
+observed error: the 4xx reported by the broker was likely an inner 5xx/4xx
+from a lower layer re-emitted upward, so don't trust the outer status code
+when debugging — check Authorino, Envoy, and broker logs separately.
+
+Manifests, redeployment steps, verification, and a dev-cluster name mapping
+were originally drafted as a standalone module 17; after the workshop restructure, its manifests now live in the workshop core path: Gateway/client-route in [`02-mcp-gateway`](../deploy/workshop/02-mcp-gateway/), backend routes in [`05-gateway-registration`](../deploy/workshop/05-gateway-registration/), AuthPolicies in [`08-authpolicies`](../deploy/workshop/08-authpolicies/), Vault injection in [`11-vault`](../deploy/workshop/11-vault/). Redeployment guidance lives in those modules' READMEs.
+
+One open risk to validate during rollout: mcp-gateway ≥ v0.6 signs the
+router's own hairpin backend-init requests with a short-lived HMAC JWT
+rather than the user's Keycloak JWT. If those requests fail the per-route
+Keycloak-JWT authentication, the per-route policies need a second
+authentication method for router-signed JWTs (see the module README's
+troubleshooting section).
+
 ## Related Files
 
 | File | Relevance |
 |------|-----------|
-| `deploy/workshop/10-identity-auth/authpolicy.yaml` | Authorization header stripping block |
-| `deploy/workshop/10-identity-auth/authentication-cr.yaml` | External OIDC configuration |
-| `deploy/workshop/07-mcp-server-prerequisites/openshift-mcp-prerequisites.yaml` | MCP server config.toml (no auth settings currently) |
-| `deploy/workshop/08-github-mcp-server/github-mcp-server.yaml` | GitHub MCP server deployment |
-| `deploy/workshop/14-vault/` | Vault integration (planned) |
+| `deploy/workshop/06-identity-keycloak/authpolicy.yaml` | Authorization header stripping block |
+| `deploy/workshop/06-identity-keycloak/authentication-cr.yaml` | External OIDC configuration |
+| `deploy/workshop/03-mcp-server-prerequisites/openshift-mcp-prerequisites.yaml` | MCP server config.toml (no auth settings currently) |
+| `deploy/workshop/10-github-mcp-server/github-mcp-server.yaml` | GitHub MCP server deployment |
+| `deploy/workshop/11-vault/` | Vault integration (planned) |
 | `docs/mcp-layered-authorization.md` | Four-layer authorization model (context for this problem) |

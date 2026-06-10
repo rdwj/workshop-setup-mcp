@@ -9,7 +9,7 @@ cert-manager, and the supporting operators ready for the MCP Gateway stack.
 ## Can I Skip This?
 
 If your cluster already has these prerequisites, skip to
-[Module 1](../01-gpu-node/README.md). Check with:
+[Module 1 -- Gateway Infrastructure](../01-gateway-infrastructure/README.md). Check with:
 
 ```bash
 # RHOAI operator installed?
@@ -62,8 +62,8 @@ Look for these key operators:
 
 !!! note "GPU Operator and NFD"
     The GPU Operator and Node Feature Discovery are installed in
-    [Module 1](../01-gpu-node/README.md), not here. If you plan to
-    use a GPU, continue to Module 1 after this module.
+    [Module 12](../12-gpu-node/README.md) in the optional model track, not
+    here. GPU/model work is deferred until after the core path.
 
 This typically takes 3--5 minutes. If an operator stays in `Installing`
 for more than 5 minutes, check for pending InstallPlans:
@@ -130,4 +130,4 @@ You should see a GatewayClass named `data-science-gateway-class` with
 
 ---
 
-**Next**: [Module 1 -- Add a GPU Compute Node](../01-gpu-node/README.md) (or skip to [Module 2](../02-gateway-infrastructure/README.md) if no GPU)
+**Next**: [Module 1 -- Gateway Infrastructure](../01-gateway-infrastructure/README.md)

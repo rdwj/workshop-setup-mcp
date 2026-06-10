@@ -61,28 +61,33 @@ Key env vars for auth:
 
 The `deploy/` directory contains Kustomize overlays that build up the full stack in order:
 
+The workshop is sequenced as a required core path (per-user identity is the goal milestone), then optional tracks. See `docs/workshop-restructure-plan.md` for the rationale.
+
 | Stage | Directory | Purpose |
 |-------|-----------|---------|
 | 00 | cluster-prerequisites | RHOAI, Service Mesh, and platform operators |
-| 01 | gpu-node | GPU MachineSet, ClusterPolicy, and HardwareProfile |
-| 02 | gateway-infrastructure | Kuadrant API gateway |
-| 03 | models-as-a-service | MaaS PostgreSQL, Gateway, TLS, MaaS API |
-| 04 | deploy-model | gpt-oss-20b model deployment via KServe |
-| 05 | model-endpoint | LLM endpoint (local or external) |
-| 06 | mcp-gateway | MCP Gateway broker |
-| 07 | mcp-server-prerequisites | ServiceAccount, RBAC, ConfigMap for MCP server |
-| 08 | mcp-server | OpenShift MCP server deployment |
-| 08+ | github-mcp-server | GitHub MCP server with credentialRef and toolPrefix |
-| 09 | gateway-registration | Register MCP servers with gateway, rate limiting |
-| 10 | identity-auth | Keycloak realm, clients, user groups, MCP server client roles, External OIDC |
-| 11 | deploy-agent | Build and deploy the agent, gateway, and UI |
-| 12 | agent-test | Agent testing (admin + user configs) |
-| 13 | playground | Gen AI Studio Playground with external model and MCP tools |
-| 14 | vault | HashiCorp Vault integration |
-| 15 | observability | Cluster Observability Operator, Perses dashboards, Loki logging |
-| 16 | add-mcp-server | Add a third-party MCP server with per-tool access control |
+| 01 | gateway-infrastructure | Kuadrant API gateway |
+| 02 | mcp-gateway | MCP Gateway broker, two-plane Gateway (mcp/mcps listeners), client Route — the single client URL |
+| 03 | mcp-server-prerequisites | ServiceAccount, RBAC, ConfigMap (writes on, destructive off) for MCP server |
+| 04 | mcp-server | OpenShift MCP server deployment |
+| 05 | gateway-registration | Register MCP servers (internal .mcp.local hostnames), VirtualMCPServers, rate limiting |
+| 06 | identity-keycloak | Keycloak realm, clients, user groups, MCP server client roles, wristband keys |
+| 07 | external-oidc | Keycloak JWTs as K8s API tokens, group→RBAC mapping (break-glass first) |
+| 08 | authpolicies | Layered AuthPolicies: client plane, backend default, per-route passthrough |
+| 09 | developer-onboarding | Claude Code against the gateway — per-user tools, RBAC, audit (core milestone) |
+| 10 | github-mcp-server | GitHub MCP server with credentialRef and toolPrefix (shared PAT, read-only) |
+| 11 | vault | Vault + per-user GitHub PAT injection |
+| 12 | gpu-node | GPU MachineSet, ClusterPolicy, and HardwareProfile (optional model track) |
+| 13 | models-as-a-service | MaaS PostgreSQL, Gateway, TLS, MaaS API |
+| 14 | deploy-model | gpt-oss-20b model deployment via KServe |
+| 15 | model-endpoint | LLM endpoint (local or external) |
+| 16 | deploy-agent | Build and deploy the agent, gateway, and UI |
+| 17 | agent-test | Agent testing (admin + user configs) |
+| 18 | playground | Gen AI Studio Playground with external model and MCP tools |
+| 19 | observability | Cluster Observability Operator, Perses dashboards, Loki logging |
+| 20 | add-mcp-server | Add a third-party MCP server with per-tool access control |
 
-`deploy/base/` contains OpenShift operator subscriptions (RHOAI, Web Terminal). GPU Operator and NFD are installed in Module 1.
+`deploy/base/` contains OpenShift operator subscriptions (RHOAI, Web Terminal). GPU Operator and NFD are installed in Module 12.
 
 ### Two-Plane Tool System
 

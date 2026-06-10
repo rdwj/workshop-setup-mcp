@@ -1,0 +1,57 @@
+# Client entry: OpenShift Route (edge TLS) -> Istio gateway service -> `mcp`
+# listener -> broker.
+#
+# The Route MUST point at the Istio gateway service
+# (mcp-gateway-data-science-gateway-class), NOT the broker service
+# (mcp-gateway). Traffic that bypasses Envoy bypasses ext_proc and the
+# AuthPolicy entirely, and tools/call only works through ext_proc routing.
+#
+# The hostname is a single-level subdomain (mcp-gateway.<CLUSTER_DOMAIN>) so
+# the cluster wildcard certificate covers it — see Lessons Learned on
+# multi-level subdomains.
+#
+# Replace <CLUSTER_DOMAIN> before applying. Verify the service port with
+# `oc get svc mcp-gateway-data-science-gateway-class -n mcp-system` and
+# adjust targetPort if it differs.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mcp-gateway
+  namespace: mcp-system
+spec:
+  host: mcp-gateway.<CLUSTER_DOMAIN>
+  to:
+    kind: Service
+    name: mcp-gateway-data-science-gateway-class
+    weight: 100
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+# HTTPRoute attaching the client hostname to the `mcp` listener and sending
+# /mcp (and OAuth discovery metadata) to the broker.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-gateway-client
+  namespace: mcp-system
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      namespace: mcp-system
+      sectionName: mcp
+  hostnames:
+    - "mcp-gateway.<CLUSTER_DOMAIN>"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+        - path:
+            type: PathPrefix
+            value: /.well-known
+      backendRefs:
+        - name: mcp-gateway
+          port: 8080

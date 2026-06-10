@@ -1,0 +1,102 @@
+# Per-route AuthPolicy: GitHub MCP server — PER-USER PAT VIA VAULT.
+#
+# Atomically replaces the backend-plane default for this route. Follows the
+# upstream Kuadrant vault-token-exchange pattern:
+#
+#   1. Validate the user's Keycloak JWT (forwarded by the broker on the
+#      hairpin leg — this is why the client-plane policy must not strip it)
+#   2. vault-login: exchange the user's JWT for a Vault client token
+#      (cached per user for 5 minutes)
+#   3. vault: read the user's GitHub PAT from the KV store, path keyed by
+#      preferred_username
+#   4. Replace the Authorization header with the user's PAT
+#
+# The GitHub MCP server (v1.2.0+, HTTP mode) creates a per-request GitHub
+# client from the incoming Bearer token, so every GitHub API call is made
+# as the actual developer. The single-identity limitation in Lessons
+# Learned applies to the shared-PAT deployment, not to this mode.
+#
+# The MCPServerRegistration's credentialRef (static PAT) is still required:
+# the broker uses it for tools/list discovery. Both coexist by design.
+#
+# PREREQUISITES (this module, Steps 1-4 / guide section 5.1.6):
+#   - Vault KV v2 engine mounted at secret/
+#   - JWT auth method configured against the Keycloak realm JWKS, with a
+#     role named "authorino" whose bound_audiences matches an `aud` claim
+#     in user access tokens
+#   - Templated policy restricting each user to
+#     secret/data/mcp-gateway/users/{preferred_username}/*
+#   - Per-user PATs stored at secret/mcp-gateway/users/<username>/github
+#     with key `github_pat`
+#   - If your IdP issues lightweight tokens without `preferred_username`,
+#     switch the cache key and URL expression to auth.identity.sub
+#
+# Replace KEYCLOAK_ISSUER via sed before applying. Adjust the Vault service
+# URL/scheme to your Module 14 deployment.
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: github-mcp-route-auth
+  namespace: mcp-ecosystem
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: github-mcp-server
+  rules:
+    authentication:
+      keycloak-jwt:
+        jwt:
+          issuerUrl: KEYCLOAK_ISSUER
+        metrics: true
+    metadata:
+      vault-login:
+        priority: 0
+        http:
+          url: http://vault.vault.svc.cluster.local:8200/v1/auth/jwt/login
+          method: POST
+          body:
+            expression: |
+              "{\"role\": \"authorino\", \"jwt\": \"" + request.headers["authorization"].split("Bearer ")[1] + "\"}"
+        cache:
+          key:
+            expression: auth.identity.preferred_username
+          ttl: 300
+      vault:
+        priority: 1
+        when:
+          - predicate: auth.metadata.exists(p, p == "vault-login") && has(auth.metadata["vault-login"].auth) && has(auth.metadata["vault-login"].auth.client_token)
+        http:
+          urlExpression: |
+            "http://vault.vault.svc.cluster.local:8200/v1/secret/data/mcp-gateway/users/" + auth.identity.preferred_username + "/github"
+          method: GET
+          headers:
+            "X-Vault-Token":
+              expression: auth.metadata["vault-login"].auth.client_token
+    authorization:
+      tool-roles:
+        opa:
+          rego: |
+            allow { not input.request.headers["x-mcp-toolname"] }
+
+            allow {
+              servername := input.request.headers["x-mcp-servername"]
+              toolname := input.request.headers["x-mcp-toolname"]
+              input.auth.identity.resource_access[servername].roles[_] == toolname
+            }
+        metrics: true
+      found-vault-secret:
+        patternMatching:
+          patterns:
+            - predicate: |
+                has(auth.metadata.vault.data) && has(auth.metadata.vault.data.data) && has(auth.metadata.vault.data.data.github_pat) && type(auth.metadata.vault.data.data.github_pat) == string
+    response:
+      success:
+        headers:
+          authorization:
+            plain:
+              expression: |
+                "Bearer " + auth.metadata.vault.data.data.github_pat
+      unauthorized:
+        message:
+          value: "No GitHub credential found for this user. Ask an admin to provision your PAT in Vault."

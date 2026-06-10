@@ -1,0 +1,44 @@
+# Revised Gateway: two listeners, two traffic planes.
+#
+#   mcp   — client entry plane. External clients (Claude Code, agents, IDEs)
+#           enter here via the OpenShift Route (route-client-entry.yaml).
+#           The gateway-level AuthPolicy (authpolicy-gateway-client.yaml)
+#           attaches to this listener: JWT validation, wristband signing,
+#           VirtualMCPServer routing.
+#
+#   mcps  — backend plane. Only the broker's hairpin traffic uses it.
+#           Backend MCP server HTTPRoutes attach here with internal
+#           *.mcp.local hostnames that are not resolvable outside the mesh.
+#           Per-server AuthPolicies attach to the individual HTTPRoutes;
+#           authpolicy-gateway-backend.yaml provides the fail-closed default.
+#
+# Both listeners share port 8080 — Envoy separates them by Host header.
+# The previous `https` (443) listener is removed: client TLS is handled by
+# the edge-terminated OpenShift Route, so all client traffic passes the
+# `mcp` listener and its AuthPolicy. A 443 listener without a policy would
+# be an authentication bypass.
+#
+# Replace <CLUSTER_DOMAIN> with your cluster's apps domain:
+#   oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}'
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mcp-gateway
+  namespace: mcp-system
+spec:
+  gatewayClassName: data-science-gateway-class
+  listeners:
+    - name: mcp
+      hostname: "mcp-gateway.<CLUSTER_DOMAIN>"
+      port: 8080
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: mcps
+      hostname: "*.mcp.local"
+      port: 8080
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All

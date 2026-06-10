@@ -1,0 +1,24 @@
+# Backend route on an internal *.mcp.local hostname. Only the broker's
+# in-mesh hairpin ever reaches this route (it sets the Host header itself),
+# so it needs no public, DNS-resolvable hostname. Clients use the single
+# gateway URL from Module 2 instead — never per-server hostnames.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: openshift-mcp-server
+  namespace: mcp-ecosystem
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      namespace: mcp-system
+      sectionName: mcps
+  hostnames:
+    - "openshift-mcp-server.mcp.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+      backendRefs:
+        - name: openshift-mcp-server
+          port: 8080
