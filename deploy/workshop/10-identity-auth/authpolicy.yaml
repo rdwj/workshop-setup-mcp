@@ -154,6 +154,12 @@ spec:
                   groups:
                     selector: auth.identity.groups
               metrics: true
+            # Route to the correct MCPVirtualServer based on group membership.
+            # This + the wristband are subtractive layers — the broker enforces
+            # the intersection. Both tools/list and tools/call are restricted.
+            x-mcp-virtualserver:
+              plain:
+                expression: '"mcp-admins" in auth.identity.groups ? "mcp-system/admin-tools" : "mcp-system/user-tools"'
             # Strip the Authorization header before forwarding to the backend.
             # Without this, the OpenShift MCP server uses the Keycloak JWT
             # for K8s API auth instead of its ServiceAccount token, and fails.
