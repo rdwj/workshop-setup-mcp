@@ -303,7 +303,7 @@ This module uses Keycloak **client roles** to manage per-tool permissions. Here 
 
 **Bearer-only clients as role containers.** Each MCP server has a matching Keycloak client whose only purpose is to hold client roles. The client ID matches the MCPServerRegistration name exactly (e.g., `mcp-ecosystem/openshift-mcp-server` — Keycloak supports `/` in client IDs). Bearer-only clients cannot be used for login -- they only provide a namespace for roles.
 
-**Client roles represent tools.** Each tool exposed by an MCP server is a client role on that server's Keycloak client. Role names match the unprefixed tool names (e.g., `pods_list`, not `openshift_pods_list`). The gateway's `toolPrefix` is applied independently by the broker.
+**Client roles represent tools.** Each tool exposed by an MCP server is a client role on that server's Keycloak client. Role names match the tool names exactly (e.g., `pods_list`). In MCP Gateway v0.7.0 tools are unprefixed unless names collide across servers, so role names and tool names align one-to-one.
 
 **`resource_access` JWT claim.** When a user has client roles assigned, Keycloak includes them in the JWT under `resource_access.<client-id>.roles`:
 

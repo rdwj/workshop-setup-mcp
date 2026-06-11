@@ -52,9 +52,14 @@ oc apply -f referencegrant.yaml
 
 ## Step 3: Create the MCPServerRegistration
 
-The MCPServerRegistration tells the MCP broker about the backend server and
-assigns a `toolPrefix`. All tools from this server will be prefixed with
-`openshift_` (e.g., `pods_list` becomes `openshift_pods_list`):
+The MCPServerRegistration tells the MCP broker about the backend server.
+It declares a `toolPrefix`, but **MCP Gateway v0.7.0 only applies the
+prefix when tool names collide across servers** — with this workshop's
+servers there are no collisions, so tools keep their natural names
+(`pods_list`, not `pods_list`) and `oc get
+mcpserverregistrations` shows an empty PREFIX column. (v0.6.0 applied the
+prefix unconditionally; older docs and examples may still show prefixed
+names.)
 
 ```bash
 oc apply -f mcpserverregistration.yaml
@@ -114,7 +119,9 @@ with a `Host` header matching the HTTPRoute. The response should include
 serving registered tools.
 
 For a full tool listing, run the MCP session sequence (initialize →
-capture the session ID → tools/list):
+capture the session ID → tools/list). Expect the 15 backend tools below
+**plus two gateway-native tools** (`discover_tools`, `select_tools`) that
+v0.7.0 adds for dynamic tool discovery:
 
 ```bash
 GW=http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp
@@ -135,30 +142,30 @@ oc exec -n mcp-system deploy/mcp-gateway -- sh -c "
 > the public gateway URL with a Bearer token (Module 9 Step 4 shows the
 > same sequence with auth).
 
-The expected set is 15 tools, all prefixed with
-`openshift_`. **The exact set depends on the server image** — with
-`read_only = false` the current image exposes the write tool `pods_run`
-(NOT `resources_create_or_update`, which some earlier docs referenced).
-Always verify against your actual `tools/list` output and align the
-Keycloak tool roles (Module 6) with what the server really exposes:
+The expected set is 15 backend tools, **unprefixed**. The exact set
+depends on the server image — with `read_only = false` the current image
+exposes the write tool `pods_run` (NOT `resources_create_or_update`, which
+some earlier docs referenced). Always verify against your actual
+`tools/list` output and align both the Keycloak tool roles (Module 6) and
+the VirtualMCPServer lists with what the gateway really returns:
 
 | Tool | Description |
 |---|---|
-| openshift_configuration_view | View cluster configuration |
-| openshift_events_list | List cluster events |
-| openshift_namespaces_list | List namespaces |
-| openshift_nodes_log | Get node logs |
-| openshift_nodes_stats_summary | Node resource statistics |
-| openshift_nodes_top | Node CPU/memory usage |
-| openshift_pods_get | Get a specific pod |
-| openshift_pods_list | List pods (all namespaces) |
-| openshift_pods_list_in_namespace | List pods in a namespace |
-| openshift_pods_log | Get pod logs |
-| openshift_pods_top | Pod CPU/memory usage |
-| openshift_projects_list | List projects |
-| openshift_pods_run | Run a pod from an image (write) |
-| openshift_resources_get | Get any resource by GVK |
-| openshift_resources_list | List resources by GVK |
+| configuration_view | View cluster configuration |
+| events_list | List cluster events |
+| namespaces_list | List namespaces |
+| nodes_log | Get node logs |
+| nodes_stats_summary | Node resource statistics |
+| nodes_top | Node CPU/memory usage |
+| pods_get | Get a specific pod |
+| pods_list | List pods (all namespaces) |
+| pods_list_in_namespace | List pods in a namespace |
+| pods_log | Get pod logs |
+| pods_top | Pod CPU/memory usage |
+| projects_list | List projects |
+| pods_run | Run a pod from an image (write) |
+| resources_get | Get any resource by GVK |
+| resources_list | List resources by GVK |
 
 If you see 0 tools, the broker may not have restarted. Repeat the rollout
 restart in Step 3.
@@ -260,7 +267,7 @@ The first 5 requests should return HTTP 200; the 6th should return HTTP 429.
 |---|---|---|
 | HTTPRoute | mcp-ecosystem | Routes `openshift-mcp-server.mcp.local` (backend plane) to the MCP server |
 | ReferenceGrant | mcp-system | Allows cross-namespace Gateway reference |
-| MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix: openshift_) |
+| MCPServerRegistration | mcp-ecosystem | Registers the server with the broker (prefix applied only on name conflicts in v0.7.0) |
 | MCPVirtualServer (admin-tools) | mcp-system | Full tool set (incl. write tool) for administrators |
 | MCPVirtualServer (user-tools) | mcp-system | 8-tool read-only subset for developers |
 | RateLimitPolicy (mcp-gateway-ratelimit) | mcp-system | 10 req/min per user on the client listener (default) |

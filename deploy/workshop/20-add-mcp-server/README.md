@@ -50,7 +50,7 @@ oc apply -f httproute.yaml --context="$CTX"
 
 ## Step 3: Register with the Gateway
 
-The MCPServerRegistration tells the broker about the new server and applies the `calculus_` prefix to all its tools:
+The MCPServerRegistration tells the broker about the new server. The `toolPrefix` is only applied if names collide with another server's tools (MCP Gateway v0.7.0 behavior) — with no collisions here, tools keep their natural names:
 
 ```bash
 oc apply -f mcpserverregistration.yaml --context="$CTX"
@@ -113,30 +113,30 @@ This creates:
 
 ## Step 5: Update VirtualMCPServers
 
-Add the new `calculus_*` tools to both VirtualMCPServer resources so they appear in `tools/list`:
+Add the new calculus tools (unprefixed) to both VirtualMCPServer resources so they appear in `tools/list`:
 
 ```bash
 # Add to admin-tools
 oc patch mcpvirtualserver admin-tools -n mcp-system --context="$CTX" --type=json \
-  -p '[{"op":"add","path":"/spec/tools/-","value":"calculus_calculate_area_under_curve"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_compute_derivative"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_compute_integral"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_compute_limit"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_expand_series"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_multivariable_calc"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_solve_equation"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_solve_ode"}]'
+  -p '[{"op":"add","path":"/spec/tools/-","value":"calculate_area_under_curve"},
+       {"op":"add","path":"/spec/tools/-","value":"compute_derivative"},
+       {"op":"add","path":"/spec/tools/-","value":"compute_integral"},
+       {"op":"add","path":"/spec/tools/-","value":"compute_limit"},
+       {"op":"add","path":"/spec/tools/-","value":"expand_series"},
+       {"op":"add","path":"/spec/tools/-","value":"multivariable_calc"},
+       {"op":"add","path":"/spec/tools/-","value":"solve_equation"},
+       {"op":"add","path":"/spec/tools/-","value":"solve_ode"}]'
 
 # Add the same to user-tools
 oc patch mcpvirtualserver user-tools -n mcp-system --context="$CTX" --type=json \
-  -p '[{"op":"add","path":"/spec/tools/-","value":"calculus_calculate_area_under_curve"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_compute_derivative"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_compute_integral"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_compute_limit"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_expand_series"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_multivariable_calc"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_solve_equation"},
-       {"op":"add","path":"/spec/tools/-","value":"calculus_solve_ode"}]'
+  -p '[{"op":"add","path":"/spec/tools/-","value":"calculate_area_under_curve"},
+       {"op":"add","path":"/spec/tools/-","value":"compute_derivative"},
+       {"op":"add","path":"/spec/tools/-","value":"compute_integral"},
+       {"op":"add","path":"/spec/tools/-","value":"compute_limit"},
+       {"op":"add","path":"/spec/tools/-","value":"expand_series"},
+       {"op":"add","path":"/spec/tools/-","value":"multivariable_calc"},
+       {"op":"add","path":"/spec/tools/-","value":"solve_equation"},
+       {"op":"add","path":"/spec/tools/-","value":"solve_ode"}]'
 ```
 
 Restart the broker again:
@@ -153,7 +153,7 @@ Get tokens and check `tools/list` for both users:
 # Get a token for developer-a
 TOKEN=$(bash scripts/get-mcp-token.sh)
 
-# Check tools/list — should now include calculus_* tools
+# Check tools/list — should now include the calculus tools
 # developer-a: 47 tools (14 OpenShift + 25 GitHub + 8 calculus)
 # developer-b: 31 tools (8 OpenShift + 15 GitHub + 8 calculus)
 ```
@@ -194,12 +194,12 @@ curl -sk -X DELETE -H "Authorization: Bearer ${ADMIN_TOKEN}" \
 ### 7b: Remove from the user-tools VirtualMCPServer
 
 ```bash
-# Find the index of calculus_expand_series in user-tools
+# Find the index of expand_series in user-tools
 IDX=$(oc get mcpvirtualserver user-tools -n mcp-system --context="$CTX" \
   -o json | python3 -c "
 import json, sys
 tools = json.load(sys.stdin)['spec']['tools']
-print(tools.index('calculus_expand_series'))
+print(tools.index('expand_series'))
 ")
 
 oc patch mcpvirtualserver user-tools -n mcp-system --context="$CTX" --type=json \
@@ -209,9 +209,9 @@ oc patch mcpvirtualserver user-tools -n mcp-system --context="$CTX" --type=json 
 ### 7c: Verify the restriction
 
 ```bash
-# developer-b tools/list: calculus_expand_series should be gone (30 tools, not 31)
-# developer-b tools/call calculus_expand_series: should return 403 / PERMISSION_DENIED
-# developer-b tools/call calculus_compute_derivative: should still work
+# developer-b tools/list: expand_series should be gone (30 tools, not 31)
+# developer-b tools/call expand_series: should return 403 / PERMISSION_DENIED
+# developer-b tools/call compute_derivative: should still work
 # developer-a: unchanged — all 47 tools, can call expand_series
 ```
 

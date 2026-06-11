@@ -4,6 +4,9 @@ metadata:
   name: openshift-mcp-server
   namespace: mcp-ecosystem
 spec:
+  # v0.7.0: the prefix is only applied if tool names collide across
+  # servers; otherwise tools keep their natural names and the PREFIX
+  # column shows empty. Kept for conflict resolution.
   toolPrefix: openshift_
   path: /mcp
   targetRef:
