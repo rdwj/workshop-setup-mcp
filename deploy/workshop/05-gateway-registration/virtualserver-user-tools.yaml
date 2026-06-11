@@ -6,28 +6,28 @@ metadata:
 spec:
   description: Read-only tools for developers (OpenShift + GitHub)
   tools:
-    # OpenShift MCP server (8 tools, prefix: openshift_)
-    - openshift_namespaces_list
-    - openshift_pods_get
-    - openshift_pods_list
-    - openshift_pods_list_in_namespace
-    - openshift_pods_log
-    - openshift_projects_list
-    - openshift_resources_get
-    - openshift_resources_list
-    # GitHub MCP server (15 tools, prefix: github_)
-    - github_get_commit
-    - github_get_file_contents
-    - github_get_me
-    - github_issue_read
-    - github_list_branches
-    - github_list_commits
-    - github_list_issues
-    - github_list_pull_requests
-    - github_list_releases
-    - github_pull_request_read
-    - github_search_code
-    - github_search_issues
-    - github_search_pull_requests
-    - github_search_repositories
-    - github_search_users
+    # OpenShift MCP server (8 read-only tools, unprefixed in v0.7.0)
+    - namespaces_list
+    - pods_get
+    - pods_list
+    - pods_list_in_namespace
+    - pods_log
+    - projects_list
+    - resources_get
+    - resources_list
+    # GitHub MCP server (15 read tools, unprefixed in v0.7.0)
+    - get_commit
+    - get_file_contents
+    - get_me
+    - issue_read
+    - list_branches
+    - list_commits
+    - list_issues
+    - list_pull_requests
+    - list_releases
+    - pull_request_read
+    - search_code
+    - search_issues
+    - search_pull_requests
+    - search_repositories
+    - search_users

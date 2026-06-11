@@ -195,7 +195,7 @@ per-request credentials coexist by design.
 
 ## Step 6: Verify Per-User GitHub Identity
 
-Call `github_get_me` as each developer (tokens as in Module 9). The result
+Call the `get_me` tool as each developer (tokens as in Module 9). The result
 must be **each developer's own GitHub profile**:
 
 ```bash
@@ -203,7 +203,7 @@ must be **each developer's own GitHub profile**:
 curl -sk -X POST "https://mcp-gateway.${CLUSTER_DOMAIN}/mcp" \
   -H "Authorization: Bearer ${TOKEN_A}" -H "Mcp-Session-Id: ${SID}" \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"github_get_me","arguments":{}},"id":1}'
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_me","arguments":{}},"id":1}'
 ```
 
 Repeat as developer-b — a different GitHub login comes back. Two

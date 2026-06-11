@@ -110,7 +110,7 @@ operators. The quick signal is the subscription status, not elapsed time:
 a second pending plan immediately — run the approval loop again until none
 remain. Each module repeats a short callout at the step where this bites.
 
-This workshop uses production RHOAI 3.4 and MCP Gateway 0.6.0 components.
+This workshop uses production RHOAI 3.4 and MCP Gateway 0.7.0 components (the tech-preview catalog always installs the latest version — see the version-drift note below).
 You'll encounter several real-world deployment patterns that require manual
 intervention -- these are documented inline with step-by-step workarounds.
 These scenarios reflect actual production deployments and build operational
@@ -141,6 +141,11 @@ knowledge.
   MCPGatewayExtension.
 - The broker does not auto-reload when the config Secret changes. Restart
   the broker pod after registering servers.
+- **Version drift is real**: the tech-preview catalog only ships the latest
+  operator. v0.7.0 changed `toolPrefix` semantics — the prefix is applied
+  only on name conflicts, so tools are unprefixed in this workshop. If a
+  future version changes tool naming again, the rule is: VirtualMCPServer
+  lists and Keycloak roles must match the actual `tools/list` output.
 - `toolPrefix` on MCPServerRegistration is immutable once set. Delete and
   recreate if you need to change it.
 

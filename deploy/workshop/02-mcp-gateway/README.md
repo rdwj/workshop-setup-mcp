@@ -49,7 +49,7 @@ Wait for the CSV to reach `Succeeded`. This can take 2--3 minutes:
 oc get csv -n openshift-operators | grep mcp-gateway
 ```
 
-This installs `mcp-gateway.v0.6.0`.
+This installs the MCP Gateway operator — currently `mcp-gateway.v0.7.0` (the tech-preview catalog ships only the latest version; expect the minor version to advance over time).
 
 !!! warning "InstallPlan May Require Approval"
 

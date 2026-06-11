@@ -103,14 +103,17 @@ model:                                      # Track C only
 # ---------------------------------------------------------------------------
 # Expected milestone checks (the agent should verify and report each):
 #   M1 (after Module 2): curl initialize on https://mcp-gateway.<domain>/mcp → 200
-#   M2 (after Module 5): tools/list via gateway shows openshift_* tools (15 expected)
+#   M2 (after Module 5): tools/list via gateway shows the 15 OpenShift tools
+#       (UNPREFIXED in MCP Gateway v0.7.0) + 2 gateway tools (discover_tools,
+#       select_tools)
 #   M3 (after Module 7): oc whoami --token=<developer-a JWT> → developer-a
 #   M4 (after Module 8): unauthenticated /mcp → 401; all 3 AuthPolicies
 #       Accepted; client + per-route Enforced; backend default may show
 #       Enforced=False reason=Overridden (expected)
-#   M5 (after Module 9): tools/list counts DIFFER per user (dev-a 15, dev-b 8
-#       on core path); developer-b denied on openshift_pods_run (HTTP 500
-#       wrapping the Rego 403 on the hairpin initialize — that IS the denial);
-#       developer-a runs a pod via pods_run; audit log attributes to developer-a
+#   M5 (after Module 9): tools/list counts DIFFER per user (dev-a 15+2,
+#       dev-b 8+2 on core path; names unprefixed); developer-b denied on
+#       pods_run (HTTP 500 wrapping the Rego 403 on the hairpin initialize —
+#       that IS the denial); developer-a runs a pod via pods_run; audit log
+#       attributes to developer-a
 #   M6 (after Module 11): github_get_me returns different identities per user
 # ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ metadata:
   name: calculus-helper
   namespace: mcp-ecosystem
 spec:
+  # v0.7.0: applied only on name conflicts; tools stay unprefixed here
   toolPrefix: calculus_
   # No trailing slash: the FastMCP server answers on /mcp only; /mcp/
   # returns 404 and the broker health check fails (READY=False).

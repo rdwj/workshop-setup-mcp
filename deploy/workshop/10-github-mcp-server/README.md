@@ -4,7 +4,8 @@ This module deploys the official GitHub MCP server as a second backend behind
 the MCP Gateway. Unlike the OpenShift MCP server (which uses the MCPServer CR
 and lifecycle operator), this is a third-party container deployed as a standard
 Deployment + Service. It runs in `--read-only` mode, exposing 25 GitHub tools
-with a `github_` prefix.
+(unprefixed in MCP Gateway v0.7.0 — the registration's `toolPrefix` only
+applies on name conflicts).
 
 **Prerequisites** -- Modules 1--8 completed. The `mcp-ecosystem` namespace
 and the ReferenceGrant (Module 5) exist, and the layered AuthPolicies
@@ -146,43 +147,44 @@ curl -sk -X POST "https://mcp-gateway.${CLUSTER_DOMAIN}/mcp" \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}'
 ```
 
-Then run the full tools/list sequence from Module 9 Step 4 — expect 40
-tools (15 `openshift_` + 25 `github_`).
+Then run the full tools/list sequence from Module 9 Step 4 — expect 40 backend
+tools (15 OpenShift + 25 GitHub, all unprefixed) plus the two
+gateway-native tools.
 
 The response should include `serverInfo` from the "Kuadrant MCP Gateway"
 confirming the broker is serving the registered GitHub tools. If you see 0
 tools, the broker may not have finished restarting -- repeat the rollout
 restart in Step 5.
 
-The expected set is 25 read-only tools, all prefixed with `github_`:
+The expected set is 25 read-only tools (unprefixed):
 
 | Tool | Description |
 |---|---|
-| github_get_commit | Get details for a commit |
-| github_get_file_contents | Get file or directory contents |
-| github_get_label | Get a specific label from a repository |
-| github_get_latest_release | Get the latest release |
-| github_get_me | Get the authenticated user |
-| github_get_release_by_tag | Get a release by tag name |
-| github_get_tag | Get details about a git tag |
-| github_get_team_members | Get team members |
-| github_get_teams | Get the user's teams |
-| github_issue_read | Read issue details, comments, sub-issues, or labels |
-| github_list_branches | List branches |
-| github_list_commits | List commits on a branch |
-| github_list_issue_types | List issue types for an organization |
-| github_list_issues | List issues in a repository |
-| github_list_pull_requests | List pull requests |
-| github_list_releases | List releases |
-| github_list_repository_collaborators | List repository collaborators |
-| github_list_tags | List git tags |
-| github_pull_request_read | Read PR details, diff, status, files, reviews, comments, or check runs |
-| github_search_code | Search code across repositories |
-| github_search_commits | Search commits |
-| github_search_issues | Search issues |
-| github_search_pull_requests | Search pull requests |
-| github_search_repositories | Search repositories |
-| github_search_users | Search users |
+| get_commit | Get details for a commit |
+| get_file_contents | Get file or directory contents |
+| get_label | Get a specific label from a repository |
+| get_latest_release | Get the latest release |
+| get_me | Get the authenticated user |
+| get_release_by_tag | Get a release by tag name |
+| get_tag | Get details about a git tag |
+| get_team_members | Get team members |
+| get_teams | Get the user's teams |
+| issue_read | Read issue details, comments, sub-issues, or labels |
+| list_branches | List branches |
+| list_commits | List commits on a branch |
+| list_issue_types | List issue types for an organization |
+| list_issues | List issues in a repository |
+| list_pull_requests | List pull requests |
+| list_releases | List releases |
+| list_repository_collaborators | List repository collaborators |
+| list_tags | List git tags |
+| pull_request_read | Read PR details, diff, status, files, reviews, comments, or check runs |
+| search_code | Search code across repositories |
+| search_commits | Search commits |
+| search_issues | Search issues |
+| search_pull_requests | Search pull requests |
+| search_repositories | Search repositories |
+| search_users | Search users |
 
 ---
 

@@ -53,8 +53,9 @@ claude mcp add --transport http mcp-gateway "${GATEWAY_URL}" \
 ```
 
 Then in a Claude Code session, run `/mcp` to confirm the connection and
-list the tools. You should see the **admin** tool set (all `openshift_*`
-tools, including the write tool `openshift_pods_run`).
+list the tools. You should see the **admin** tool set (all 15 OpenShift
+tools (plus the gateway's `discover_tools`/`select_tools`), including the
+write tool `pods_run`).
 
 The TLS chain works because the gateway hostname is a single-level
 subdomain covered by the cluster's wildcard certificate — this is why
@@ -81,8 +82,9 @@ claude mcp add --transport http mcp-gateway-b "${GATEWAY_URL}" \
 developer-b sees only the read-only subset — the broker filtered
 `tools/list` using the wristband (allowed-tools from their client roles)
 intersected with their VirtualMCPServer (`user-tools`). With the core path
-deployed, expect developer-a to see all 15 `openshift_*` tools and
-developer-b 8. If **both users see the same full list**, the client-plane
+deployed, expect developer-a to see all 15 OpenShift tools and
+developer-b the 8-tool read-only subset (both also see the two
+gateway-native tools). If **both users see the same full list**, the client-plane
 AuthPolicy is not executing — verify it targets the broker's HTTPRoute
 `mcp-gateway-route` (Module 8), not a Gateway listener.
 
@@ -102,7 +104,7 @@ SID=$(curl -sk -D - -o /dev/null -X POST "${GATEWAY_URL}" \
 curl -sk -o /dev/null -w "HTTP %{http_code}\n" -X POST "${GATEWAY_URL}" \
   -H "Authorization: Bearer ${TOKEN_B}" -H "Mcp-Session-Id: ${SID}" \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"openshift_pods_run","arguments":{}},"id":2}'
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"pods_run","arguments":{}},"id":2}'
 # Expected: HTTP 500 with body:
 #   failed to create session for mcp server: ... server returned 4xx for initialize POST ...
 ```
@@ -123,7 +125,7 @@ In Claude Code as **developer-a**, ask:
 > registry.access.redhat.com/ubi9/ubi-minimal in the mcp-ecosystem
 > namespace that sleeps for an hour
 
-The model calls `openshift_pods_run`; the gateway passes developer-a's
+The model calls `pods_run`; the gateway passes developer-a's
 JWT through; the MCP server uses it for the K8s API call; K8s RBAC
 (cluster-admin via mcp-admins) allows it.
 
