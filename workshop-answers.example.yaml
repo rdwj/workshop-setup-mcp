@@ -72,8 +72,10 @@ keycloak:
 
 github:                                     # Track B only
   # Module 10 — shared PAT for broker tool discovery (read:user minimum;
-  # stored in the github-mcp-token Secret, label mcp.kuadrant.io/secret=true)
-  discovery_pat: "<ghp_SHARED_DISCOVERY_PAT>"
+  # stored in the github-mcp-token Secret, label mcp.kuadrant.io/secret=true).
+  # Reusing developer-a's PAT here is fine for the workshop — discovery
+  # only lists tools; per-user injection (Module 11) covers actual calls.
+  discovery_pat: "<ghp_SHARED_DISCOVERY_PAT or reuse developer-a's>"
   # Module 11 — one PAT per workshop user, seeded into Vault at
   # secret/mcp-gateway/users/<username>/github (key github_pat).
   # REQUIREMENTS (see Module 11 README): fine-grained PATs, ideally from

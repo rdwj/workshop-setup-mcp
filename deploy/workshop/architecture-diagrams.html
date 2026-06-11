@@ -34,13 +34,15 @@
 <main>
 <h1>MCP Ecosystem on OpenShift — Architecture</h1>
 <p class="lede">Two views of what the workshop builds: how a developer's token travels and transforms, and the end-state system. Companion to the
-<a href="https://rdwj.github.io/workshop-setup-mcp/">workshop guide</a>.</p>
+<a href="https://rdwj.github.io/workshop-setup-mcp/">workshop guide</a>.
+Validated end to end on live clusters (RHOAI 3.4, MCP Gateway 0.6.0 — June 2026).</p>
 
 <h2>1. Per-user auth &amp; token flow</h2>
 <p class="note"><strong>The blue token never changes.</strong> The JWT a developer gets from Keycloak is the same credential the Kubernetes API
 eventually validates — External OIDC puts them in one trust domain. The amber path is the one transformation in the system: the per-route policy
 trades the JWT at Vault for that user's GitHub PAT. Any backend route without its own policy gets the fail-closed default: JWT required,
-Authorization stripped. One subtlety: the router rewrites the Host header before auth runs, so the client-plane policy attaches to the broker&#8217;s HTTPRoute (mcp-gateway-route) rather than the listener.</p>
+Authorization stripped. A denied tool call is rejected by the per-route policy (403) on the broker&#8217;s backend-session initialize and
+surfaces to the client as a broker 500 — well-behaved clients never see it, since denied tools are already filtered from their list. One subtlety: the router rewrites the Host header before auth runs, so the client-plane policy attaches to the broker&#8217;s HTTPRoute (mcp-gateway-route) rather than the listener.</p>
 
 <svg viewBox="0 0 680 960" xmlns="http://www.w3.org/2000/svg" role="img">
 <title>Per-user auth and token flow through the MCP Gateway</title>
@@ -283,7 +285,9 @@ the audit log attributes it.</p>
 </svg>
 
 <p class="note">Removing a Keycloak tool role degrades all four authorization layers on the user's next token — no gateway or policy
-changes required. Full background: <code>docs/per-user-mcp-identity-fix.md</code> in the repo.</p>
+changes required. The same rules apply to non-human callers: the workshop agent authenticates as a Keycloak service account and needs group
+membership <em>and</em> tool roles like any developer — an identity without roles gets a zero-tool list. Full background:
+<code>docs/per-user-mcp-identity-fix.md</code> in the repo.</p>
 </main>
 </body>
 </html>

@@ -67,6 +67,27 @@ Wait for the registration to show `READY=True`:
     streamable-http transport (fastmcp v3: `transport="streamable-http"`,
     or the equivalent CLI flag) — not `sse`.
 
+!!! warning "Registration can be intermittent with this server"
+
+    Known issue: the calculus-helper registration may flap — READY=True
+    with tools discovered, then READY=False after a broker restart, with
+    broker logs showing `server does not support listening` or ping
+    failures. The broker's keepalive expects the server to hold its
+    streamable-http session; this third-party server's session handling is
+    not fully stable with broker v0.6. If it flaps: restart the
+    calculus-helper pod first, then the broker, and re-check
+    `oc get mcpserverregistrations -n mcp-ecosystem`. Tool visibility
+    through the gateway follows the registration state — calculus tools
+    appear and disappear with it. Treat persistent flapping as a
+    server-side issue, not a gateway misconfiguration: the openshift and
+    github registrations on the same broker remain READY throughout.
+
+    Also verify the **discovered tool count matches the Keycloak roles**
+    you create in Step 4: `tools/list` may show 7 tools while the script
+    creates 8 roles (`multivariable_calc` is not exposed by all builds of
+    the server). Extra roles are harmless; tools without roles are
+    uncallable.
+
 ```bash
 oc get mcpserverregistrations -n mcp-ecosystem --context="$CTX"
 ```

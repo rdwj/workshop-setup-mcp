@@ -100,6 +100,16 @@ Track D (Modules 19--20): observability + extension exercise (optional).
 
 ## Real-World Deployment Patterns
 
+**InstallPlan approval (read once, applies to every module):** on these
+clusters, nearly every operator subscription ends up needing manual
+InstallPlan approval, even with `installPlanApproval: Automatic` — OLM
+bundles new installs into pending Manual-approval plans from other
+operators. The quick signal is the subscription status, not elapsed time:
+`oc get subscription <name> -n <ns> -o jsonpath='{.status.state}'` showing
+`UpgradePending` means check InstallPlans. Approving one plan can surface
+a second pending plan immediately — run the approval loop again until none
+remain. Each module repeats a short callout at the step where this bites.
+
 This workshop uses production RHOAI 3.4 and MCP Gateway 0.6.0 components.
 You'll encounter several real-world deployment patterns that require manual
 intervention -- these are documented inline with step-by-step workarounds.

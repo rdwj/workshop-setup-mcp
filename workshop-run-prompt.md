@@ -59,9 +59,9 @@ and switch your own kube access to it for the rollout. Do not start
 Module 7 if break-glass verification fails — document and stop.
 
 Keep a running notes file at `workshop-run-notes-YYYY-MM-DD.md` in this
-directory. Record at the top: the guide revision marker from the site home
-page (or "no revision marker shown" — that itself is a finding), the
-cluster context, and the start time. For each module record: status
+directory. Record at the top: the guide revision marker — the
+**"Last updated" timestamp at the bottom of the site home page** — plus
+the cluster context and the start time. For each module record: status
 (clean pass / pass with notes / workaround needed / blocked), wall time,
 the exact step and command where anything deviated, what a student would
 have seen, what you did about it, and your classification. Quote error
