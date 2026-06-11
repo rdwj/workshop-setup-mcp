@@ -172,14 +172,15 @@ sed "s/<CLUSTER_DOMAIN>/${CLUSTER_DOMAIN}/g" mcp-servers-configmap.yaml \
   | oc apply --context="$CTX" -f -
 ```
 
-!!! important "Internal URL Required"
+!!! note "Gateway URL"
 
-    The MCP servers ConfigMap must use the internal ClusterIP URL
-    (`http://<service>.mcp-system.svc.cluster.local:8080/mcp`), not the external
-    Route URL. The Gen AI BFF connects to MCP servers server-side from within
-    the cluster. Use the Istio gateway service -- not the broker service. The
-    broker responds to `tools/list` from its cache, but `tools/call` only works
-    through the Istio gateway's ext_proc routing.
+    The template uses the external gateway URL
+    (`https://mcp-gateway.<CLUSTER_DOMAIN>/mcp`) — the same single client
+    URL as every other consumer. The Gen AI BFF can reach it from inside
+    the cluster via the OpenShift router. Never point it at the broker
+    service directly: the broker answers `tools/list` from cache, but
+    `tools/call` only works through the Istio gateway's ext_proc routing
+    (and direct service access bypasses every AuthPolicy).
 
 ## Step 7: Use the Playground
 

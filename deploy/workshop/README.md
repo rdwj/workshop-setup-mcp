@@ -21,6 +21,10 @@ commands and download links.
 
 ## Architecture
 
+Visual versions — token flow and end-state system:
+[architecture-diagrams.html](architecture-diagrams.html)
+(served on the published site at `/architecture-diagrams.html`).
+
 ```
                                                  MCP Server
                                                  (OpenShift K8s tools)

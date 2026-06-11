@@ -9,7 +9,10 @@ Otherwise, choose Option A below.
 
 ## If You Completed Modules 12--14: Use Your Deployed Model
 
-Set your endpoint to the internal service created in Module 14:
+Set your endpoint to the internal service created in Module 14. This is
+the `gpt-oss-20b-test` Service from **Module 14 Step 4** — if you skipped
+that step, go back and create it now (`oc get svc gpt-oss-20b-test -n
+gpt-oss-model` to check):
 
 ```bash
 export MODEL_ENDPOINT="http://gpt-oss-20b-test.gpt-oss-model.svc.cluster.local:8080/v1"

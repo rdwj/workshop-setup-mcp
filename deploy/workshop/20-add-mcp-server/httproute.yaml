@@ -18,5 +18,7 @@ spec:
             type: PathPrefix
             value: /mcp
       backendRefs:
-        - name: calculus-helper
+        # deploy.sh creates the Service as "mcp-server" — this must match
+        # the actual Service name, not the registration name.
+        - name: mcp-server
           port: 8080

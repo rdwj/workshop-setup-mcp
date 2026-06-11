@@ -114,9 +114,11 @@ with a `Host` header matching the HTTPRoute. The response should include
 serving registered tools.
 
 For a full tool listing, the expected set is 15 tools, all prefixed with
-`openshift_` (the count depends on config.toml — with `read_only = false`
-and `disable_destructive = true` the write tool `resources_create_or_update`
-appears; verify against your actual `tools/list` output):
+`openshift_`. **The exact set depends on the server image** — with
+`read_only = false` the current image exposes the write tool `pods_run`
+(NOT `resources_create_or_update`, which some earlier docs referenced).
+Always verify against your actual `tools/list` output and align the
+Keycloak tool roles (Module 6) with what the server really exposes:
 
 | Tool | Description |
 |---|---|
@@ -132,9 +134,9 @@ appears; verify against your actual `tools/list` output):
 | openshift_pods_log | Get pod logs |
 | openshift_pods_top | Pod CPU/memory usage |
 | openshift_projects_list | List projects |
+| openshift_pods_run | Run a pod from an image (write) |
 | openshift_resources_get | Get any resource by GVK |
 | openshift_resources_list | List resources by GVK |
-| openshift_resources_create_or_update | Create or update a resource (write) |
 
 If you see 0 tools, the broker may not have restarted. Repeat the rollout
 restart in Step 3.

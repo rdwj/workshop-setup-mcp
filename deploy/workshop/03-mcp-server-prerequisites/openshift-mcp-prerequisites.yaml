@@ -29,7 +29,8 @@ data:
     # Writes enabled, destructive ops disabled: per-user authorization is
     # enforced by Keycloak tool roles (Module 6) + K8s RBAC via External
     # OIDC (Module 7). read_only = true would make admins and viewers
-    # indistinguishable at the K8s layer.
+    # indistinguishable at the K8s layer. With this image the write tool
+    # exposed is pods_run.
     read_only = false
     disable_destructive = true
     toolsets = ["core", "config"]

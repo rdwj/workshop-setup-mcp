@@ -32,13 +32,13 @@ KEYCLOAK_URL="https://$(oc get route keycloak -n keycloak --context="$CTX" -o js
 
 The agent was deployed in Module 16 with admin credentials (`mcp-gateway`
 client, member of `mcp-admins`). Confirm the agent is connected to the
-gateway with 14 tools:
+gateway with the full admin tool set (15 tools after the core path; 40 after Track B adds GitHub):
 
 ```bash
 oc logs deployment/workshop-setup-mcp -n "$NS" --context="$CTX" | grep "tool(s)"
 ```
 
-You should see `14 tool(s)` -- the full admin tool set.
+You should see the tool count in the logs (e.g. `40 tool(s)` if Track B is deployed) -- the full admin tool set.
 
 Get the chat UI URL:
 

@@ -39,7 +39,10 @@ oc get pods -l app=mcp-server -n mcp-ecosystem --context="$CTX"
 
 ## Step 2: Create the HTTPRoute
 
-The HTTPRoute tells the gateway proxy how to reach the calculus-helper:
+The HTTPRoute tells the gateway proxy how to reach the calculus-helper.
+Note the backendRef points at the Service that `deploy.sh` actually
+creates (`mcp-server`) — a mismatch here leaves the MCPServerRegistration
+stuck with `Service ... not found`:
 
 ```bash
 oc apply -f httproute.yaml --context="$CTX"
@@ -54,6 +57,15 @@ oc apply -f mcpserverregistration.yaml --context="$CTX"
 ```
 
 Wait for the registration to show `READY=True`:
+
+!!! warning "Transport compatibility"
+
+    The MCP Gateway broker speaks **streamable-http** and sends a POST for
+    `initialize`. A server running the legacy **SSE** transport fails
+    registration with `server returned 4xx for initialize POST, likely a
+    legacy SSE server`. Make sure the calculus-helper is started with the
+    streamable-http transport (fastmcp v3: `transport="streamable-http"`,
+    or the equivalent CLI flag) — not `sse`.
 
 ```bash
 oc get mcpserverregistrations -n mcp-ecosystem --context="$CTX"

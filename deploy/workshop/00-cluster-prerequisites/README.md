@@ -6,6 +6,10 @@ cert-manager, and the supporting operators ready for the MCP Gateway stack.
 
 **Time:** 15--20 minutes (plus 5--10 minutes for operators to install)
 
+> **Working directory:** all commands in this module run from the **repo
+> root** (`cd workshop-setup-mcp` after cloning). If you opened a new
+> terminal, change back into the repo first.
+
 ## Can I Skip This?
 
 If your cluster already has these prerequisites, skip to

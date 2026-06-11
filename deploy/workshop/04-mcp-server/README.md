@@ -44,36 +44,10 @@ oc patch mcpserver openshift-mcp-server -n mcp-ecosystem --type=merge -p '
   {"spec": {"source": {"containerImage": {"ref": "quay.io/redhat-user-workloads/ocp-mcp-server-tenant/openshift-mcp-server-release-03:latest"}}}}'
 ```
 
-If you skipped the dashboard, create the MCPServer CR directly. Copy the
-reference from `openshift-mcp-server-cr.yaml` in the source repo, or apply:
+If you skipped the dashboard, create the MCPServer CR directly:
 
 ```bash
-cat <<'EOF' | oc apply -f -
-apiVersion: mcp.x-k8s.io/v1alpha1
-kind: MCPServer
-metadata:
-  name: openshift-mcp-server
-  namespace: mcp-ecosystem
-spec:
-  source:
-    type: ContainerImage
-    containerImage:
-      ref: quay.io/redhat-user-workloads/ocp-mcp-server-tenant/openshift-mcp-server-release-03:latest
-  config:
-    port: 8080
-    arguments:
-      - --config
-      - /etc/mcp-config/config.toml
-    storage:
-      - path: /etc/mcp-config
-        source:
-          type: ConfigMap
-          configMap:
-            name: openshift-mcp-server-config
-  runtime:
-    security:
-      serviceAccountName: mcp-viewer
-EOF
+oc apply -f openshift-mcp-server-cr.yaml
 ```
 
 ## Step 3: Verify the Pod is Running

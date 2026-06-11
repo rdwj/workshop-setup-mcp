@@ -39,11 +39,13 @@ Copy the token value -- you will need it in the next step.
 The Secret stores your PAT and makes it available to both the MCP server pod
 and the gateway's credential injection.
 
-Edit `github-mcp-secret.yaml` and replace `<GITHUB_PAT>` with your token, then
-apply:
+Create the Secret directly from your token (avoid editing tracked files;
+the label is required or the broker silently ignores the credential):
 
 ```bash
-oc apply -f github-mcp-secret.yaml
+oc create secret generic github-mcp-token -n mcp-ecosystem \
+  --from-literal=token="<YOUR_GITHUB_PAT>"
+oc label secret github-mcp-token -n mcp-ecosystem mcp.kuadrant.io/secret=true
 ```
 
 !!! important "The `mcp.kuadrant.io/secret: \"true\"` Label is Required"

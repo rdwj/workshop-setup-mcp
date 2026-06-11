@@ -5,9 +5,18 @@ AuthPolicies, one per concern:
 
 | Policy | Attaches to | Responsibility |
 |---|---|---|
-| `mcp-gateway-client-auth` | Gateway listener `mcp` (client plane) | JWT validation, wristband signing, VirtualMCPServer routing, tool-call Rego, `x-auth-username` |
+| `mcp-gateway-client-auth` | **HTTPRoute `mcp-gateway-route`** (the broker's route — see below) | JWT validation, wristband signing, VirtualMCPServer routing, tool-call Rego, `x-auth-username` |
 | `mcp-gateway-backend-auth` | Gateway listener `mcps` (backend plane) | Fail-closed default: JWT required, tool-call Rego, **Authorization stripped** for any route without its own policy |
 | `openshift-mcp-route-auth` | HTTPRoute `openshift-mcp-server` | JWT + tool-call Rego + **user JWT passes through** to the server → per-user K8s identity |
+
+**Why the client policy attaches to the broker's route, not the `mcp`
+listener:** the router (ext_proc) runs first in the Envoy filter chain and
+rewrites the Host header from the public hostname to its derived public
+host (`mcp.mcp.local`) *before* auth evaluates. Client traffic therefore
+matches the operator-managed broker route (`mcp-gateway-route`), and a
+policy attached to the `mcp` listener never executes for `/mcp` traffic.
+The symptom of getting this wrong is silent: 401s still work (the backend
+default fires), but no wristband is issued and every user sees every tool.
 
 This layering is the heart of per-user identity. The client-plane policy
 validates the developer's JWT and leaves it intact; the broker forwards it
@@ -127,8 +136,11 @@ curl -sk -o /dev/null -w "HTTP %{http_code}\n" \
 # Expected: HTTP 200
 ```
 
-Full per-user behavior (tools/list filtering, tool-call 403s, the write
-demo) is exercised in Module 9.
+Verify per-user filtering is live (the definitive check that the client
+policy is executing): `tools/list` as developer-a and developer-b must
+return **different counts** (15 vs 8 on the core path). Full per-user
+behavior, including the write demo and denied-call semantics, is exercised
+in Module 9.
 
 ---
 

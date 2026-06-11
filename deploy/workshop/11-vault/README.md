@@ -26,8 +26,24 @@ client from the incoming Bearer token, so every GitHub API call is made
 **Prerequisites:**
 - Modules 1--10 complete (gateway, identity, AuthPolicies, GitHub server)
 - `helm` CLI installed
-- One GitHub PAT per workshop user (minimum `read:user` scope; add scopes
-  to match the tools you want to exercise)
+- One GitHub PAT per workshop user — see the PAT requirements below
+
+!!! important "PAT requirements (read this before creating tokens)"
+
+    To actually *demonstrate* per-user identity, the two PATs must be
+    distinguishable:
+
+    - **Fine-grained PATs** (not classic), ideally from **two different
+      GitHub accounts**; if you must use one account, scope the repository
+      access differently per token.
+    - **Repository access**: developer-a gets all target repos;
+      developer-b gets a restricted subset.
+    - **Permissions → Repository permissions → Contents: Read and write.**
+      Read-only PATs against **public** repos are indistinguishable —
+      GitHub grants every fine-grained PAT read access to public repos
+      regardless of repository selection. The per-user difference is only
+      visible on writes (or on private repos).
+    - For a read-only demo, at least one target repo must be **private**.
 
 > **Working directory:**
 >
@@ -61,8 +77,17 @@ helm upgrade -i vault hashicorp/vault \
   --set server.dev.enabled=true \
   --set server.dev.devRootToken=workshop-root \
   --set injector.enabled=false \
-  --set global.openshift=true
+  --set global.openshift=true \
+  --set server.image.repository=docker.io/hashicorp/vault \
+  --set server.image.tag=1.19
 ```
+
+!!! warning "Image override is required"
+
+    With `global.openshift=true`, recent chart versions default the server
+    image to `registry.connect.redhat.com/hashicorp/vault:<chart-version>`,
+    a tag that does not exist — the pod sits in `ImagePullBackOff`. The two
+    `server.image.*` overrides above pin a real image on docker.io.
 
 Wait for the pod:
 

@@ -147,8 +147,8 @@ Run the setup script. It creates:
 - An `oc-cli` client (public, for OpenShift CLI OIDC login)
 - Groups: `mcp-admins`, `mcp-users`, `mcp-github`
 - A `groups` client scope with a group-membership mapper
-- Bearer-only clients matching MCPServerRegistration names (`mcp-ecosystem/openshift-mcp-server`, `mcp-ecosystem/github-mcp-server`) with client roles for each tool — including the write tool `resources_create_or_update`
-- Workshop users `developer-a` (admin -- all tool roles, including the write tool) and `developer-b` (user -- read-only subset)
+- Bearer-only clients matching MCPServerRegistration names (`mcp-ecosystem/openshift-mcp-server`, `mcp-ecosystem/github-mcp-server`) with client roles for each tool — including the write tool `pods_run`
+- Workshop users `developer-a` (admin -- all tool roles, including the write tool `pods_run`) and `developer-b` (user -- read-only subset)
 - Assigns `groups` scope to the `mcp-gateway`, `console-oidc`, and `oc-cli` clients
 - Assigns built-in `roles` scope to the `mcp-gateway` client
 - Puts the `mcp-gateway` service account into `mcp-admins`
@@ -159,6 +159,12 @@ bash setup-keycloak-realm.sh
 ```
 
 The script is idempotent -- running it twice will not create duplicates.
+
+> **Tool roles must match the server's real tool list.** The script's role
+> list matches the current server image. If a future image changes the
+> tool set, run `tools/list` (Module 5 Step 4) and create/remove roles to
+> match — tool names that exist as roles but not as tools are harmless;
+> tools without roles are uncallable by everyone.
 
 **Critical:** When requesting tokens, you **must** include `scope=openid groups`
 or the `groups` claim will be absent from the JWT. Without it, VirtualMCPServer
@@ -262,7 +268,7 @@ print('resource_access:', json.dumps(c.get('resource_access'), indent=2))
 
 **Expected:** `groups` contains `mcp-admins`, and `resource_access` contains
 `mcp-ecosystem/openshift-mcp-server` with the full tool role list, including
-`resources_create_or_update`.
+`pods_run`.
 
 > The gateway does not require these tokens *yet* — enforcement is wired in
 > Module 8. Per-user MCP identity is no longer a future enhancement: it is
@@ -277,7 +283,7 @@ Keycloak (mcp-gateway realm)
   ├── Groups: mcp-admins, mcp-users        → VirtualMCPServer routing (Module 8)
   ├── Users: developer-a, developer-b      → per-user identity end to end
   ├── Bearer-only clients per MCP server   → client roles = tool permissions
-  │     mcp-ecosystem/openshift-mcp-server (15 roles, incl. one write tool)
+  │     mcp-ecosystem/openshift-mcp-server (15 roles, incl. write tool pods_run)
   │     mcp-ecosystem/github-mcp-server
   └── Wristband ECDSA keys                 → tools/list filtering (Module 8)
 ```
@@ -305,7 +311,7 @@ This module uses Keycloak **client roles** to manage per-tool permissions. Here 
 {
   "resource_access": {
     "mcp-ecosystem/openshift-mcp-server": {
-      "roles": ["pods_list", "pods_get", "namespaces_list", "resources_create_or_update"]
+      "roles": ["pods_list", "pods_get", "namespaces_list", "pods_run"]
     },
     "mcp-ecosystem/github-mcp-server": {
       "roles": ["search_code", "get_file_contents"]

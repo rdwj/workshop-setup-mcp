@@ -1,0 +1,27 @@
+# OpenShift MCP server CR. The built-in catalog image
+# (registry.redhat.io/.../openshift-mcp-server-rhel9:0.2) does not exist;
+# this uses the working image from Quay.
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  name: openshift-mcp-server
+  namespace: mcp-ecosystem
+spec:
+  source:
+    type: ContainerImage
+    containerImage:
+      ref: quay.io/redhat-user-workloads/ocp-mcp-server-tenant/openshift-mcp-server-release-03:latest
+  config:
+    port: 8080
+    arguments:
+      - --config
+      - /etc/mcp-config/config.toml
+    storage:
+      - path: /etc/mcp-config
+        source:
+          type: ConfigMap
+          configMap:
+            name: openshift-mcp-server-config
+  runtime:
+    security:
+      serviceAccountName: mcp-viewer

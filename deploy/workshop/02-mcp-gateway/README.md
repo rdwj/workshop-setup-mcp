@@ -119,6 +119,9 @@ CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spe
 echo "$CLUSTER_DOMAIN"
 ```
 
+> Commands in this module use your current kube context. If you work with
+> multiple clusters, append `--context="$CTX"` to each `oc` command.
+
 ## Step 5: Create the Gateway (Two Listeners)
 
 ```bash
