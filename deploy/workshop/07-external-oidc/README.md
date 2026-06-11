@@ -144,6 +144,16 @@ oc patch authentication.config.openshift.io cluster --context="$CTX" \
 (`authentication-cr.yaml` in this directory shows the same configuration
 as a full CR, for reference.)
 
+**Mid-rollout, your current `oc` session WILL start returning
+`Unauthorized`** — that is the old kube:admin OAuth token dying, on
+schedule. Switch to the break-glass token and continue:
+
+```bash
+oc config set-credentials break-glass --token="$(cat /tmp/break-glass-token)"
+oc config set-context "$CTX" --user=break-glass
+oc whoami --context="$CTX"   # system:serviceaccount:kube-system:break-glass
+```
+
 Wait for the `kube-apiserver` cluster operator to stabilize (10--15
 minutes as it rolls across all control plane nodes):
 
@@ -162,6 +172,11 @@ groups to ClusterRoles:
 oc adm policy add-cluster-role-to-group cluster-admin mcp-admins --context="$CTX"
 oc adm policy add-cluster-role-to-group view mcp-users --context="$CTX"
 ```
+
+> The commands print `Warning: Group 'mcp-admins' not found` — this is
+> expected and harmless. The groups exist in Keycloak JWTs, not as
+> OpenShift Group objects; the binding applies to whatever presents the
+> group claim.
 
 Now `developer-a` (mcp-admins) is cluster-admin and `developer-b`
 (mcp-users) is view-only — *as themselves*, with their own usernames in

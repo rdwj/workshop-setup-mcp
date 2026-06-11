@@ -69,7 +69,7 @@ deployments need HA storage, auto-unseal, and TLS.
 
 ```bash
 helm repo add hashicorp https://helm.releases.hashicorp.com
-helm repo update
+helm repo update hashicorp   # scoped: avoids failures from unrelated stale repos
 
 helm upgrade -i vault hashicorp/vault \
   --namespace vault --create-namespace \

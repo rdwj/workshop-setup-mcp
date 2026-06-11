@@ -138,9 +138,17 @@ Clean up: `oc delete pod onboarding-demo -n mcp-ecosystem`.
 Verify attribution in the audit log:
 
 ```bash
-oc adm node-logs --role=master --path=kube-apiserver/audit.log --context="$CTX" \
+# Pulling audit logs from ALL masters can take several minutes. Query one
+# master at a time — the API call lands on whichever holds the active
+# apiserver, so check each until you find the entries:
+NODE=$(oc get nodes -l node-role.kubernetes.io/master -o jsonpath='{.items[0].metadata.name}' --context="$CTX")
+oc adm node-logs "$NODE" --path=kube-apiserver/audit.log --context="$CTX" \
   | grep '"user":{"username":"developer-a"' | tail -3
 ```
+
+> Be patient — even a single master's audit log is large. If the first
+> node has no entries, repeat with `.items[1]` and `.items[2]`. For a
+> workshop demo, run this while students take a break.
 
 The username on the API call is the developer, not `mcp-viewer`. This is
 the per-user audit trail that the shared-SA design could not provide.

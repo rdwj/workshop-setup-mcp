@@ -111,15 +111,13 @@ EOF
 Test from within the cluster:
 
 ```bash
-oc run curl-test -n gpt-oss-model --context="$CTX" --rm -it \
+# Note: no -t (tty) and grep-based extraction — pod lifecycle messages
+# share the stream and break strict JSON parsing
+oc run curl-test -n gpt-oss-model --context="$CTX" --rm -i \
   --image=registry.redhat.io/ubi9/ubi-minimal:latest \
   --restart=Never -- \
-  curl -s http://gpt-oss-20b-test:8080/v1/models | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for m in data.get('data', []):
-    print(m['id'])
-"
+  curl -s http://gpt-oss-20b-test:8080/v1/models \
+  | grep -o '"id":"[^"]*"' 
 ```
 
 You should see `redhataigpt-oss-20b` in the output.

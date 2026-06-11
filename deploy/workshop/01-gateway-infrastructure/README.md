@@ -52,7 +52,7 @@ You should see something like `rhcl-operator.v1.3.4` with phase `Succeeded`.
     oc get installplan -n openshift-operators
     ```
 
-    OLM may bundle the RHCL install into the same InstallPlan as a pending Service Mesh upgrade — approving every unapproved plan (below) handles both. If you see any with `APPROVED=false`, approve them:
+    OLM may bundle the RHCL install into the same InstallPlan as a pending Service Mesh upgrade — approving every unapproved plan (below) handles both. The fast signal is `oc get subscription rhcl-operator -n openshift-operators -o jsonpath='{.status.state}'` showing `UpgradePending`. Approving one plan can immediately surface another pending one — re-run the loop until none remain. If you see any with `APPROVED=false`, approve them:
 
     ```bash
     for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do

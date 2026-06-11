@@ -115,6 +115,9 @@ oc apply -f mcp-system-namespace.yaml
 
 ## Step 4: Discover Your Cluster Domain
 
+Several later steps substitute your cluster's apps domain into manifests.
+Capture it once:
+
 ```bash
 CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
 echo "$CLUSTER_DOMAIN"
