@@ -169,6 +169,20 @@ call-time enforcement react on their next token.
 | K8s API authorization | External OIDC + K8s RBAC | per user (the user's own identity) |
 | Audit | kube-apiserver audit log | per user attribution |
 
+## Resource: Architecture Diagrams
+
+You have now built and exercised the full core path. Two visual summaries
+of what you just did — the per-user token flow (how your JWT traveled and
+where it was enforced or exchanged) and the end-state system architecture:
+
+**[Architecture Diagrams](../architecture-diagrams.html)** (also in the
+site nav under Reference)
+
+These are useful for explaining the system to colleagues and security
+reviewers: the token-flow diagram answers "who sees my credential, where,
+and what does it become," and the system diagram shows every component the
+workshop deploys and the three trust relationships anchored on Keycloak.
+
 ---
 
 **Next**: [Module 10 -- GitHub MCP Server](../10-github-mcp-server/README.md)

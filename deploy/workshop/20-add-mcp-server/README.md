@@ -204,4 +204,16 @@ oc patch mcpvirtualserver user-tools -n mcp-system --context="$CTX" --type=json 
 
 ---
 
+## Workshop Wrap-Up
+
+You have reached the end of the workshop. For a visual recap of everything
+you built — the per-user auth/token flow and the complete end-state
+architecture (gateway planes, identity stack, Vault, model track,
+observability) — see the
+**[Architecture Diagrams](../architecture-diagrams.html)** (Reference
+section of the site nav). They make a good closing walkthrough and a
+take-home reference for bringing this design to your own clusters.
+
+---
+
 **Previous**: [Module 19 -- Observability](../19-observability/README.md)

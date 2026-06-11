@@ -49,6 +49,7 @@ nav:
   - Reference:
     - "Troubleshooting": troubleshooting.md
     - "Layered Authorization Model": mcp-layered-authorization.md
+    - "Architecture Diagrams": https://rdwj.github.io/workshop-setup-mcp/architecture-diagrams.html
 
 markdown_extensions:
   - admonition
