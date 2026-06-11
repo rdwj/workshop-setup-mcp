@@ -131,6 +131,30 @@ USERS_GROUP_ID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
 curl -sk -X PUT -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   "${KEYCLOAK_URL}/admin/realms/mcp-gateway/users/${SA_USER_ID}/groups/${USERS_GROUP_ID}"
 
+# Assign the read-only tool roles. REQUIRED: group membership only selects
+# the VirtualMCPServer — without resource_access tool roles the wristband
+# allowed-tools is empty and the broker returns 0 tools.
+OCP_CLIENT_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=mcp-ecosystem%2Fopenshift-mcp-server" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+
+for ROLE in namespaces_list pods_get pods_list pods_list_in_namespace \
+            pods_log projects_list resources_get resources_list; do
+  ROLE_JSON=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${OCP_CLIENT_UUID}/roles/${ROLE}")
+  curl -sk -o /dev/null -X POST -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    -H "Content-Type: application/json" \
+    "${KEYCLOAK_URL}/admin/realms/mcp-gateway/users/${SA_USER_ID}/role-mappings/clients/${OCP_CLIENT_UUID}" \
+    -d "[${ROLE_JSON}]"
+done
+```
+
+> If Track B (GitHub) is deployed, repeat the loop against the
+> `mcp-ecosystem/github-mcp-server` client with developer-b's GitHub read
+> subset to give the user-level agent GitHub read tools too — otherwise it
+> sees only the 8 OpenShift tools.
+
+```bash
 # Get the client secret
 USER_CLIENT_SECRET=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${USER_CLIENT_UUID}/client-secret" \
@@ -175,7 +199,7 @@ Now ask:
 > Show me the top nodes by CPU usage
 
 The agent will attempt to call `nodes_top`. With user credentials, the
-wristband's `allowed-tools` claim contains only the 8 user-level
+wristband's `allowed-tools` claim contains only the 8 user-level OpenShift
 tools. If the gateway's wristband enforcement is active, the broker
 rejects the call. If it falls through to the backend, the
 ServiceAccount's Kubernetes RBAC blocks it (the `mcp-viewer` SA has
