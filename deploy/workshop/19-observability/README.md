@@ -205,7 +205,7 @@ Module 8. If you applied the AuthPolicies before this change, re-apply them:
 
 ```bash
 KEYCLOAK_ISSUER="https://keycloak-keycloak.${CLUSTER_DOMAIN}/realms/mcp-gateway"
-sed "s|KEYCLOAK_ISSUER|${KEYCLOAK_ISSUER}|g" ../06-identity-keycloak/authpolicy.yaml \
+sed "s|KEYCLOAK_ISSUER|${KEYCLOAK_ISSUER}|g" ../08-authpolicies/authpolicy-gateway-client.yaml \
   | oc apply -f - --context="$CTX"
 ```
 

@@ -54,7 +54,7 @@ claude mcp add --transport http mcp-gateway "${GATEWAY_URL}" \
 
 Then in a Claude Code session, run `/mcp` to confirm the connection and
 list the tools. You should see the **admin** tool set (all `openshift_*`
-tools, including `openshift_resources_create_or_update`).
+tools, including the write tool `openshift_pods_run`).
 
 The TLS chain works because the gateway hostname is a single-level
 subdomain covered by the cluster's wildcard certificate — this is why
@@ -80,7 +80,11 @@ claude mcp add --transport http mcp-gateway-b "${GATEWAY_URL}" \
 
 developer-b sees only the read-only subset — the broker filtered
 `tools/list` using the wristband (allowed-tools from their client roles)
-intersected with their VirtualMCPServer (`user-tools`).
+intersected with their VirtualMCPServer (`user-tools`). With the core path
+deployed, expect developer-a to see all 15 `openshift_*` tools and
+developer-b 8. If **both users see the same full list**, the client-plane
+AuthPolicy is not executing — verify it targets the broker's HTTPRoute
+`mcp-gateway-route` (Module 8), not a Gateway listener.
 
 ## Step 4: Per-User Enforcement at Call Time
 
@@ -98,29 +102,38 @@ SID=$(curl -sk -D - -o /dev/null -X POST "${GATEWAY_URL}" \
 curl -sk -o /dev/null -w "HTTP %{http_code}\n" -X POST "${GATEWAY_URL}" \
   -H "Authorization: Bearer ${TOKEN_B}" -H "Mcp-Session-Id: ${SID}" \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"openshift_resources_create_or_update","arguments":{}},"id":2}'
-# Expected: HTTP 403 — "Insufficient tool permissions"
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"openshift_pods_run","arguments":{}},"id":2}'
+# Expected: HTTP 500 with body:
+#   failed to create session for mcp server: ... server returned 4xx for initialize POST ...
 ```
 
-The 403 comes from the per-route AuthPolicy's Rego checking developer-b's
-`resource_access` claim. Tool access is enforced at call time, per user.
+That 500 **is the denial**: the per-route AuthPolicy's Rego rejected the
+broker's backend-session `initialize` (403) because developer-b's
+`resource_access` claim lacks `pods_run`, and the broker surfaces the
+inner 4xx as a 500. A well-behaved client never sees this — the tool is
+already filtered out of developer-b's `tools/list` — it only appears when
+a client deliberately calls a hidden tool. Enforcement is per user, at
+call time, independent of discovery filtering.
 
 ## Step 5: Per-User K8s Identity (the payoff)
 
 In Claude Code as **developer-a**, ask:
 
-> Create a ConfigMap named onboarding-demo in the mcp-ecosystem namespace
-> with key owner=developer-a
+> Run a pod named onboarding-demo from image
+> registry.access.redhat.com/ubi9/ubi-minimal in the mcp-ecosystem
+> namespace that sleeps for an hour
 
-The model calls `openshift_resources_create_or_update`; the gateway passes
-developer-a's JWT through; the MCP server uses it for the K8s API call;
-K8s RBAC (cluster-admin via mcp-admins) allows it.
+The model calls `openshift_pods_run`; the gateway passes developer-a's
+JWT through; the MCP server uses it for the K8s API call; K8s RBAC
+(cluster-admin via mcp-admins) allows it.
 
 As **developer-b**, ask the same thing. Two layers refuse, both per-user:
 
-- If the tool isn't in developer-b's roles: 403 at the gateway (Step 4).
+- If the tool isn't in developer-b's roles: denied at the gateway (Step 4).
 - Even if a Keycloak admin granted developer-b the tool role, the K8s API
   rejects the write — `view` RBAC, *their own identity*, not a shared SA.
+
+Clean up: `oc delete pod onboarding-demo -n mcp-ecosystem`.
 
 Verify attribution in the audit log:
 

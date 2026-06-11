@@ -276,7 +276,7 @@ create_client_roles() {
 OCP_TOOLS=(
   configuration_view events_list namespaces_list nodes_log nodes_stats_summary
   nodes_top pods_get pods_list pods_list_in_namespace pods_log pods_top
-  projects_list resources_get resources_list resources_create_or_update
+  pods_run projects_list resources_get resources_list
 )
 OCP_CLIENT_UUID=$(create_mcp_client "mcp-ecosystem/openshift-mcp-server")
 create_client_roles "$OCP_CLIENT_UUID" "${OCP_TOOLS[@]}"

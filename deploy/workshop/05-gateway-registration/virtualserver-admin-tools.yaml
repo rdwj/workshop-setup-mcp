@@ -20,9 +20,9 @@ spec:
     - openshift_pods_log
     - openshift_pods_top
     - openshift_projects_list
+    - openshift_pods_run
     - openshift_resources_get
     - openshift_resources_list
-    - openshift_resources_create_or_update
     # GitHub MCP server (25 tools, prefix: github_)
     - github_get_commit
     - github_get_file_contents

@@ -50,6 +50,50 @@ server, which uses it for K8s API calls under the *user's* RBAC, with the
     This is why this module sits early in the workshop — do it before
     students accumulate session state, not at the end.
 
+## What Happens to Console Login (and Your Alternatives)
+
+After this module, the OpenShift console redirects to Keycloak. This is a
+**hard consequence, not a side effect**: the Authentication CR's `type` is
+exclusive — `IntegratedOAuth` (the classic login screen, kubeadmin,
+htpasswd, IdP buttons) or `OIDC` (external). Setting `type: OIDC` removes
+the built-in OAuth server entirely; the `oauth-openshift` route stops
+existing, so there is no classic login screen to fall back to. There is no
+side-by-side mode.
+
+What you can do about each thing you might miss:
+
+- **Admin console access** — a Keycloak user in a group mapped to
+  `cluster-admin` (this workshop's `developer-a`). For real deployments,
+  create a dedicated platform-admin user/group in Keycloak.
+- **Other login methods (corporate SSO, LDAP, GitHub, …)** — federate them
+  *into Keycloak* as identity providers. Keycloak's login page can carry
+  the same IdP buttons the classic OpenShift page did; for most
+  enterprises, "console redirects to corporate SSO" is the desired end
+  state (an Entra ID deployment redirects to Microsoft login).
+- **CLI access** — `oc login` works via the `oc-cli` public client (OIDC
+  exec plugin); automation uses ServiceAccount tokens, which are unaffected.
+- **Break-glass** — SA tokens and certificate kubeconfigs keep working
+  (that's the warning box above).
+
+**The alternative, and its cost:** revert to `IntegratedOAuth` and add
+Keycloak as an OpenID *identity provider* on the OAuth CR. You keep the
+classic login screen (kubeadmin + a Keycloak button), and the MCP Gateway
+itself is unaffected — tool authorization, filtering, and the Vault/GitHub
+per-user path (Module 11) all keep working, because clients get their JWTs
+from Keycloak directly. But console logins then yield OpenShift OAuth
+tokens (`sha256~...`), not JWTs, and **the K8s API no longer accepts
+Keycloak JWTs** — so the per-user K8s identity chain (passthrough policy,
+per-user RBAC, audit attribution in Module 9) breaks. The OpenShift MCP
+server falls back to the shared-SA variant
+(`../08-authpolicies/authpolicy-openshift-route-sa.yaml`), which exists
+for exactly this configuration. Token exchange does not rescue it: with
+integrated OAuth there is no K8s-acceptable token Keycloak can mint.
+
+**It is reversible.** Flipping back to `IntegratedOAuth` (another
+10--15-minute kube-apiserver rollout) restores the classic login and the
+kubeadmin password. A demo cluster can run External OIDC during the
+workshop and be reverted afterwards.
+
 ## Variables
 
 ```bash
@@ -81,7 +125,18 @@ oc create secret generic console-oidc-secret \
 
 ## Step 2: Patch the Authentication CR
 
+The Authentication CR created by the installer carries a
+`webhookTokenAuthenticator` field from the integrated OAuth setup. That
+field **cannot coexist with `type: OIDC`**, and `oc apply` performs a
+merge that leaves it in place — applying directly fails with
+`spec.webhookTokenAuthenticator: Invalid value: ... this field cannot be
+set with the "OIDC" .spec.type`. Remove it first, then apply:
+
 ```bash
+oc patch authentication.config.openshift.io cluster --context="$CTX" \
+  --type=json -p '[{"op":"remove","path":"/spec/webhookTokenAuthenticator"}]' \
+  2>/dev/null || true   # already absent on some clusters
+
 sed -e "s|KEYCLOAK_ISSUER|${KEYCLOAK_ISSUER}|g" \
     -e "s|CONSOLE_OIDC_SECRET|console-oidc-secret|g" \
     authentication-cr.yaml \

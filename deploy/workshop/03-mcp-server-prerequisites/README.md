@@ -58,7 +58,7 @@ oc get configmap openshift-mcp-server-config -n mcp-ecosystem -o yaml
 
 Review the ConfigMap settings. Key configuration values:
 
-- `read_only = false` -- Write tools (e.g., `resources_create_or_update`) are exposed. Whether a given *user* may call them is decided by Keycloak tool roles (Module 6) and, after External OIDC (Module 7), by K8s RBAC under the caller's own identity. With `read_only = true`, admins and viewers would be indistinguishable at the K8s layer and the per-user identity story (Module 9) would have nothing to demonstrate.
+- `read_only = false` -- Write tools (e.g., `pods_run` in the current image) are exposed. Whether a given *user* may call them is decided by Keycloak tool roles (Module 6) and, after External OIDC (Module 7), by K8s RBAC under the caller's own identity. With `read_only = true`, admins and viewers would be indistinguishable at the K8s layer and the per-user identity story (Module 9) would have nothing to demonstrate.
 - `disable_destructive = true` -- Delete/destructive operations remain disabled server-wide
 - `toolsets = ["core", "config"]` -- Only core cluster inspection and configuration tools are enabled
 - Secrets are denied -- The server cannot read Secret resources regardless of caller identity

@@ -1,7 +1,16 @@
-# Client-plane AuthPolicy — attaches to the `mcp` listener (client entry).
+# Client-plane AuthPolicy — attaches to the BROKER'S HTTPRoute
+# (`mcp-gateway-route`, the operator-managed route with hostname
+# mcp.mcp.local), NOT to the `mcp` listener.
 #
-# The gateway-plane policy for the client entry listener. Note there is
-# deliberately NO Authorization header stripping block here. Stripping is a per-server concern and now lives in the per-route
+# Why: the router (ext_proc) runs FIRST in the Envoy filter chain — before
+# Kuadrant's auth — and rewrites the Host header from the public hostname
+# to its derived public host (`mcp.mcp.local`). By the time Authorino
+# evaluates, client traffic matches the broker's route, not the client
+# listener. A policy attached to the `mcp` listener never executes for
+# /mcp traffic (validated empirically: with it, no wristband was issued
+# and tools/list filtering silently did nothing for every user).
+#
+# Note there is deliberately NO Authorization header stripping block here. Stripping is a per-server concern and now lives in the per-route
 # policies (authpolicy-gateway-backend.yaml provides the safe default).
 # The user's JWT must survive this leg so the broker can forward it on the
 # hairpin leg, where per-route policies consume it (Vault login, K8s
@@ -17,11 +26,11 @@
 #   4. VirtualMCPServer routing by group
 #   5. x-auth-username injection for access logs
 #
-# NOTE: this policy uses the IMPLICIT rules form (spec.rules), not
-# spec.defaults. The AuthPolicy CRD rejects spec.when combined with
-# spec.defaults ("Implicit and explicit defaults are mutually exclusive"),
-# and the /.well-known exemption needs spec.when. Implicit form is fine
-# here because no route-level policy ever overrides the client plane.
+# NOTE: this policy uses the IMPLICIT rules form (spec.rules) — the CRD
+# rejects spec.when combined with spec.defaults, and the /.well-known
+# exemption needs spec.when. As a per-route policy it also atomically
+# overrides the backend-plane default (authpolicy-gateway-backend.yaml)
+# for the broker's route, which is exactly what we want.
 #
 # Replace KEYCLOAK_ISSUER via sed before applying (never apply the literal
 # placeholder — see Lessons Learned).
@@ -33,9 +42,8 @@ metadata:
 spec:
   targetRef:
     group: gateway.networking.k8s.io
-    kind: Gateway
-    name: mcp-gateway
-    sectionName: mcp
+    kind: HTTPRoute
+    name: mcp-gateway-route
   when:
     # OAuth protected-resource discovery must be reachable pre-auth.
     - predicate: "!request.path.contains('/.well-known')"

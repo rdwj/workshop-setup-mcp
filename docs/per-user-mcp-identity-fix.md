@@ -137,6 +137,22 @@ One CRD gotcha surfaced: `spec.when` and `spec.defaults` are mutually
 exclusive on AuthPolicy, so the client policy uses the implicit
 `spec.rules` form (it needs `when` for the OAuth discovery exemption).
 
+## Amendment (2026-06-11, end-to-end run on cluster-mb5pm)
+
+The full-workshop fidelity run surfaced one correction to the policy
+attachment model: the router (ext_proc) runs before auth and rewrites the
+Host header to `mcp.mcp.local`, so **the client-plane policy must attach to
+the broker's HTTPRoute (`mcp-gateway-route`), not the `mcp` listener** — a
+listener-attached policy never executes for `/mcp` traffic (symptom: 401s
+work but no wristband is issued and tool filtering silently does nothing).
+With the policy on the broker route, per-user filtering was verified live:
+developer-a and developer-b see different tool sets, and a denied
+`tools/call` is rejected by the per-route Rego on the hairpin initialize
+(surfaced by the broker as a 500 wrapping the 403). The run also proved the
+complete per-user chain on both backends: K8s audit log attribution
+(`user=developer-a`, via `pods_run`) and per-user GitHub write scoping via
+Vault-injected PATs.
+
 ## Verification
 
 All through the public client URL

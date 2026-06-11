@@ -3,14 +3,16 @@ kind: Namespace
 metadata:
   name: openshift-logging
 ---
+# NOTE: no targetNamespaces — the Loki operator does NOT support
+# OwnNamespace install mode (CSV fails with "OwnNamespace InstallModeType
+# not supported"). An empty spec selects AllNamespaces mode, which both
+# the Loki and Cluster Logging operators support.
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: openshift-logging
   namespace: openshift-logging
-spec:
-  targetNamespaces:
-    - openshift-logging
+spec: {}
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
