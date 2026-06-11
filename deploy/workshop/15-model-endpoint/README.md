@@ -43,7 +43,20 @@ If the endpoint requires a bearer token or API key:
 export OPENAI_API_KEY="<your-api-key-or-token>"
 ```
 
-Verify it responds:
+Verify it responds. The on-cluster URL is only reachable from inside the
+cluster, so run the check in a throwaway pod (no `-t`, and grep-based
+extraction — `oc run --rm` mixes lifecycle messages into the stream and
+breaks strict JSON parsing):
+
+```bash
+oc run model-check -n gpt-oss-model --context="$CTX" --rm -i \
+  --image=registry.redhat.io/ubi9/ubi-minimal:latest --restart=Never -- \
+  curl -s "${MODEL_ENDPOINT}/models" \
+  | grep -o '"id":"[^"]*"'
+# Expected: "id":"redhataigpt-oss-20b"
+```
+
+For an **external** endpoint, plain curl from your workstation works:
 
 ```bash
 curl -sk -H "Authorization: Bearer ${OPENAI_API_KEY}" \
