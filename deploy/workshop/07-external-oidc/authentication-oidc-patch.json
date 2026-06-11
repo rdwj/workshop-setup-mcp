@@ -1,0 +1,32 @@
+{
+  "spec": {
+    "webhookTokenAuthenticator": null,
+    "type": "OIDC",
+    "oidcProviders": [
+      {
+        "name": "keycloak",
+        "issuer": {
+          "issuerURL": "KEYCLOAK_ISSUER",
+          "audiences": ["console-oidc", "oc-cli", "mcp-gateway"]
+        },
+        "claimMappings": {
+          "username": {"claim": "preferred_username", "prefixPolicy": "NoPrefix"},
+          "groups": {"claim": "groups", "prefix": ""}
+        },
+        "oidcClients": [
+          {
+            "componentName": "console",
+            "componentNamespace": "openshift-console",
+            "clientID": "console-oidc",
+            "clientSecret": {"name": "CONSOLE_OIDC_SECRET"}
+          },
+          {
+            "componentName": "cli",
+            "componentNamespace": "openshift-console",
+            "clientID": "oc-cli"
+          }
+        ]
+      }
+    ]
+  }
+}

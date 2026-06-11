@@ -5,7 +5,9 @@ metadata:
   namespace: mcp-ecosystem
 spec:
   toolPrefix: calculus_
-  path: /mcp/
+  # No trailing slash: the FastMCP server answers on /mcp only; /mcp/
+  # returns 404 and the broker health check fails (READY=False).
+  path: /mcp
   targetRef:
     kind: HTTPRoute
     name: calculus-helper

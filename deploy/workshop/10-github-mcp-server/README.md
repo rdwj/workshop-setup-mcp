@@ -132,17 +132,22 @@ oc rollout status deployment/mcp-gateway -n mcp-system
 
 ## Step 6: Verify Tool Registration
 
-Test that the GitHub tools are visible through the gateway:
+Auth is already enforcing (Module 8), so verify through the **public
+gateway URL with a token** — the pre-auth internal curl from earlier
+modules now returns 401/empty:
 
 ```bash
 CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
-oc exec -n mcp-system deploy/mcp-gateway -- \
-  curl -s http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp \
-  -H "Host: github-mcp-server.mcp.local" \
+# TOKEN = developer-a token (Module 9 Step 1)
+curl -sk -X POST "https://mcp-gateway.${CLUSTER_DOMAIN}/mcp" \
+  -H "Authorization: Bearer ${TOKEN}" \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}' \
-  | python3 -m json.tool
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}},"id":1}'
 ```
+
+Then run the full tools/list sequence from Module 9 Step 4 — expect 40
+tools (15 `openshift_` + 25 `github_`).
 
 The response should include `serverInfo` from the "Kuadrant MCP Gateway"
 confirming the broker is serving the registered GitHub tools. If you see 0

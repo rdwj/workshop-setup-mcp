@@ -31,10 +31,9 @@ server, which uses it for K8s API calls under the *user's* RBAC, with the
     1. Create a long-lived ServiceAccount token you control:
 
        ```bash
-       oc create token deployer -n kube-system --duration=24h > /tmp/break-glass-token 2>/dev/null \
-         || oc -n kube-system create sa break-glass \
-         && oc adm policy add-cluster-role-to-user cluster-admin -z break-glass -n kube-system \
-         && oc create token break-glass -n kube-system --duration=24h > /tmp/break-glass-token
+       oc -n kube-system create sa break-glass
+       oc adm policy add-cluster-role-to-user cluster-admin -z break-glass -n kube-system
+       oc create token break-glass -n kube-system --duration=24h > /tmp/break-glass-token
        ```
 
     2. Verify it works **before** proceeding:
@@ -126,22 +125,24 @@ oc create secret generic console-oidc-secret \
 ## Step 2: Patch the Authentication CR
 
 The Authentication CR created by the installer carries a
-`webhookTokenAuthenticator` field from the integrated OAuth setup. That
-field **cannot coexist with `type: OIDC`**, and `oc apply` performs a
-merge that leaves it in place — applying directly fails with
-`spec.webhookTokenAuthenticator: Invalid value: ... this field cannot be
-set with the "OIDC" .spec.type`. Remove it first, then apply:
+`webhookTokenAuthenticator` field from the integrated OAuth setup, which
+cannot coexist with `type: OIDC`. The change must be made **in a single
+atomic request**: the authentication operator actively reconciles the
+webhook field back, so removing it first and applying OIDC second is a
+race you will usually lose ("this field cannot be set with the \"OIDC\"
+.spec.type"). A JSON *merge patch* clears the field (`null`) and sets the
+OIDC config in one operation:
 
 ```bash
 oc patch authentication.config.openshift.io cluster --context="$CTX" \
-  --type=json -p '[{"op":"remove","path":"/spec/webhookTokenAuthenticator"}]' \
-  2>/dev/null || true   # already absent on some clusters
-
-sed -e "s|KEYCLOAK_ISSUER|${KEYCLOAK_ISSUER}|g" \
-    -e "s|CONSOLE_OIDC_SECRET|console-oidc-secret|g" \
-    authentication-cr.yaml \
-  | oc apply --context="$CTX" -f -
+  --type=merge \
+  -p "$(sed -e "s|KEYCLOAK_ISSUER|${KEYCLOAK_ISSUER}|g" \
+            -e "s|CONSOLE_OIDC_SECRET|console-oidc-secret|g" \
+            authentication-oidc-patch.json)"
 ```
+
+(`authentication-cr.yaml` in this directory shows the same configuration
+as a full CR, for reference.)
 
 Wait for the `kube-apiserver` cluster operator to stabilize (10--15
 minutes as it rolls across all control plane nodes):

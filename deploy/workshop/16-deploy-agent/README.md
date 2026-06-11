@@ -203,13 +203,31 @@ oc annotate route workshop-setup-mcp-ui \
   -n "$NS" --context="$CTX"
 ```
 
+!!! important "The agent is an identity like any other"
+
+    The agent authenticates with the Keycloak `client_credentials` grant —
+    its identity is the **`mcp-gateway` service account**, and the gateway
+    treats it exactly like a developer: group membership selects its
+    VirtualMCPServer, and its `resource_access` tool roles drive the
+    wristband. The Module 6 setup script assigns the service account both
+    the `mcp-admins` group and the full tool role set.
+
+    **If the agent logs show `0 tool(s)`**: the service account is missing
+    its tool roles (re-run the Module 6 setup script — it is idempotent and
+    a newer version added this assignment), or the token hook is not
+    requesting `scope=openid groups`. Decode the agent's token to check:
+    `resource_access` must contain the `mcp-ecosystem/*` clients and
+    `groups` must contain `mcp-admins`. Restart the agent after fixing
+    roles — tokens are acquired at connect time.
+
 ## Step 9: Verify
 
 ```bash
 # All pods should be Running
 oc get pods -n "$NS" --context="$CTX" | grep -v build
 
-# Agent should show "Connected to MCP server" and "14 tool(s)"
+# Agent should show "Connected to MCP server" with a non-zero tool count
+# (40 tools with Track B deployed; 15 on the core path alone)
 oc logs deployment/workshop-setup-mcp -n "$NS" --context="$CTX" --tail=20
 
 # Get the chat UI URL
