@@ -101,7 +101,7 @@ modes later is just applying the other file.
 oc get authpolicy -A --context="$CTX"
 ```
 
-All three should show `ACCEPTED=True` and `ENFORCED=True`.
+All three should show `ACCEPTED=True`. The client and per-route policies show `ENFORCED=True`; the backend default may show `Enforced=False (Overridden)` — see below.
 
 > **"Accepted but never Enforced"?** Check the Kuadrant operator
 > (`kuadrant-operator-controller-manager` in `openshift-operators`) — if it
@@ -109,8 +109,12 @@ All three should show `ACCEPTED=True` and `ENFORCED=True`.
 > accepted by the API server but never reconciled into Authorino config.
 > Raise its memory limits and re-check.
 
-> **"Partially enforced"** on the backend policy is expected — the
-> per-route policy overrides it for the OpenShift server's route.
+> **Backend policy shows `Enforced=False` with reason "Overridden"** (or
+> "partially enforced") — expected. Per-route policies (client-auth on the
+> broker's route, the OpenShift route policy) atomically override the
+> default for their routes; once every route under `mcps` has its own
+> policy, the default has nothing left to enforce directly but still
+> guards any future route.
 
 ## Step 5: Verify Enforcement
 

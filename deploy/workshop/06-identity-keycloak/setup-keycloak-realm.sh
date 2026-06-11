@@ -394,6 +394,14 @@ GH_USER_TOOLS=(
 assign_subset_roles "$DEV_B_ID" "$OCP_CLIENT_UUID" "openshift-mcp-server" "${OCP_USER_TOOLS[@]}"
 assign_subset_roles "$DEV_B_ID" "$GH_CLIENT_UUID" "github-mcp-server" "${GH_USER_TOOLS[@]}"
 
+# Assign tool roles to the mcp-gateway service account (the agent's
+# identity in Module 16). Group membership only drives VirtualMCPServer
+# routing; without resource_access tool roles the wristband allowed-tools
+# is empty and the broker filters the agent's tool list to ZERO.
+echo "--- Assigning tool roles to mcp-gateway service account (agent identity) ---"
+assign_all_roles "$SA_USER_ID" "$OCP_CLIENT_UUID" "openshift-mcp-server"
+assign_all_roles "$SA_USER_ID" "$GH_CLIENT_UUID" "github-mcp-server"
+
 # ---------------------------------------------------------------------------
 # Verification
 # ---------------------------------------------------------------------------

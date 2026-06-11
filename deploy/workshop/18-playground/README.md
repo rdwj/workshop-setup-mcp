@@ -20,7 +20,9 @@ NS="workshop-setup-mcp"
 CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster --context="$CTX" -o jsonpath='{.spec.domain}')
 KEYCLOAK_URL="https://$(oc get route keycloak -n keycloak --context="$CTX" -o jsonpath='{.spec.host}')"
 
-# Your external model -- students provide these
+# Your external model -- students provide these. The endpoint must support
+# tool calling (vLLM: --enable-auto-tool-choice). The on-cluster
+# gpt-oss-20b ServingRuntime from Module 14 is already configured for it.
 MODEL_URL="<your-openai-compatible-endpoint>/v1"   # must end with /v1
 MODEL_NAME="<your-model-id>"                        # exact model ID from /v1/models
 API_KEY="<your-api-key>"                            # or "not-required" if no auth

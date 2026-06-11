@@ -113,7 +113,29 @@ with a `Host` header matching the HTTPRoute. The response should include
 `serverInfo` from the "Kuadrant MCP Gateway" confirming the broker is
 serving registered tools.
 
-For a full tool listing, the expected set is 15 tools, all prefixed with
+For a full tool listing, run the MCP session sequence (initialize →
+capture the session ID → tools/list):
+
+```bash
+GW=http://mcp-gateway-data-science-gateway-class.mcp-system.svc.cluster.local:8080/mcp
+oc exec -n mcp-system deploy/mcp-gateway -- sh -c "
+  SID=\$(curl -s -D - -o /dev/null -X POST $GW \
+    -H 'Host: openshift-mcp-server.mcp.local' -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d '{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"t\",\"version\":\"0\"}},\"id\":1}' \
+    | grep -i mcp-session-id | tr -d '\r' | awk '{print \$2}')
+  curl -s -X POST $GW -H 'Host: openshift-mcp-server.mcp.local' \
+    -H \"Mcp-Session-Id: \$SID\" -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":2}'
+" | tr ',' '\n' | grep -o '"name":"[^"]*"'
+```
+
+> This pre-auth internal check only works until Module 8; afterwards, use
+> the public gateway URL with a Bearer token (Module 9 Step 4 shows the
+> same sequence with auth).
+
+The expected set is 15 tools, all prefixed with
 `openshift_`. **The exact set depends on the server image** — with
 `read_only = false` the current image exposes the write tool `pods_run`
 (NOT `resources_create_or_update`, which some earlier docs referenced).

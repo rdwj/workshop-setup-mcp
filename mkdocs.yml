@@ -18,6 +18,13 @@ theme:
 
 docs_dir: deploy/workshop
 
+plugins:
+  - search
+  - git-revision-date-localized:
+      type: datetime
+      timezone: America/Chicago
+      fallback_to_build_date: true
+
 nav:
   - Home: README.md
   - Core Path:

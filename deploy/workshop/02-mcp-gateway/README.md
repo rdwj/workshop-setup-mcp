@@ -86,10 +86,11 @@ Wait for the deployment to become available:
 oc get deployment -n mcp-lifecycle-operator-system
 ```
 
-!!! important "Lifecycle Operator Memory Limits"
+!!! important "REQUIRED: Patch the Lifecycle Operator Memory Limits"
 
-    The lifecycle operator ships with a 128Mi memory limit and may get
-    `OOMKilled`. Patch to 512Mi:
+    This is a required step, not conditional troubleshooting. The
+    lifecycle operator ships with a 128Mi memory limit and gets
+    `OOMKilled` on real clusters. Patch to 512Mi:
 
 ```bash
 oc patch deployment -n mcp-lifecycle-operator-system \
@@ -150,12 +151,13 @@ Gateway's `mcps` listener:
 oc apply -f mcp-gateway-extension.yaml
 ```
 
-!!! important "Broker Service Name on OpenShift"
+!!! important "REQUIRED on OpenShift: Set privateHost"
 
-    The MCP broker resolves the Istio gateway service by appending `-istio`
-    to the Gateway name. On OpenShift, the GatewayClass is named
-    `data-science-gateway-class` (not `istio`), so the service lookup fails
-    and `tools/call` returns DNS errors. Set `privateHost` explicitly:
+    This is a required step on every OpenShift cluster using
+    `data-science-gateway-class`, not conditional troubleshooting. The MCP
+    broker resolves the Istio gateway service by appending `-istio` to the
+    Gateway name; with this GatewayClass the lookup fails and `tools/call`
+    returns DNS errors. Set `privateHost` explicitly:
 
 First, find the Istio gateway service name:
 

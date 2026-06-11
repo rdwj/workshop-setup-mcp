@@ -151,7 +151,7 @@ Run the setup script. It creates:
 - Workshop users `developer-a` (admin -- all tool roles, including the write tool `pods_run`) and `developer-b` (user -- read-only subset)
 - Assigns `groups` scope to the `mcp-gateway`, `console-oidc`, and `oc-cli` clients
 - Assigns built-in `roles` scope to the `mcp-gateway` client
-- Puts the `mcp-gateway` service account into `mcp-admins`
+- Puts the `mcp-gateway` service account into `mcp-admins` **and assigns it all tool roles** — the agent (Module 16) authenticates as this service account, and an identity without tool roles gets a zero-tool list from the broker
 
 ```bash
 export CTX KEYCLOAK_URL CLUSTER_DOMAIN
