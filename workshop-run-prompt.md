@@ -14,7 +14,7 @@ Copy-paste the prompt below into Claude Code in the fresh directory
 ---
 
 We have this workshop at https://rdwj.github.io/workshop-setup-mcp/. Our
-cluster is on context `mcp-gateway-test-cluster-05`.
+cluster is on context `dell-workshop-001`.
 
 Run the workshop end to end, exactly as a human student would. Read the
 guide on the website and run the exact commands and steps it gives, in
