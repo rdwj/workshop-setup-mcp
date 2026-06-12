@@ -1,8 +1,13 @@
 # Module 14: Deploy a Model from the Catalog (Optional Model Track)
 
-Deploy the Red Hat gpt-oss-20b model using KServe on your GPU node. The
-model will appear in the RHOAI Dashboard under Deployed Models and serve
-an OpenAI-compatible API.
+Deploy the Red Hat gpt-oss-20b model on your GPU node as an
+**LLMInferenceService** — the llm-d serving path that RHOAI 3.x's Model
+Catalog uses. This resource type is MaaS-native: its router attaches to
+the `maas-default-gateway` from Module 13, so the model is automatically
+published through MaaS at
+`https://inference.maas.<CLUSTER_DOMAIN>/gpt-oss-model/redhataigpt-oss-20b`
+and appears as a Gen AI asset in the dashboard. There is no separate
+"add to MaaS" step — it is intrinsic to deploying this way.
 
 **Time:** 15--25 minutes (plus 5--10 minutes for model weight download)
 
@@ -35,80 +40,76 @@ export CTX="<your-kube-context>"
     6. Under **Project**, select or create `gpt-oss-model`
     7. Leave replicas at 1 and click **Deploy**
 
-    The dashboard creates the ServingRuntime and InferenceService for you.
-    Skip to Step 2 to monitor the deployment.
+    The dashboard creates an LLMInferenceService (plus a per-service copy
+    of the vLLM CUDA config) for you. Skip to Step 2 to monitor the
+    deployment.
 
 === "Approach B: CLI"
 
-    Apply the deployment manifest, which creates the namespace, OCI
-    connection secret, ServiceAccount, ServingRuntime, and InferenceService:
+    Apply the deployment manifest, which creates exactly what the
+    dashboard catalog deploy creates:
 
     ```bash
     oc apply -f gpt-oss-20b-deployment.yaml --context="$CTX"
     ```
 
-    The manifest deploys five resources:
+    The manifest deploys four resources:
 
     - **Namespace** `gpt-oss-model` with the RHOAI dashboard label
     - **Secret** `gpt-oss-20b-connection` pointing to the OCI model image
       (`oci://registry.redhat.io/rhelai1/modelcar-gpt-oss-20b:1.5`)
-    - **ServiceAccount** `redhataigpt-oss-20b-sa` for pod identity
-    - **ServingRuntime** `redhataigpt-oss-20b` running vLLM with CUDA
-    - **InferenceService** `redhataigpt-oss-20b` with 1 GPU, KServe auth
-      enabled, and the `nvidia-gpu` HardwareProfile
+    - **LLMInferenceServiceConfig** `redhataigpt-oss-20b` — per-service
+      copy of the well-known vLLM NVIDIA CUDA template
+    - **LLMInferenceService** `redhataigpt-oss-20b` with 1 GPU, the
+      `nvidia-gpu` HardwareProfile, and a router attached to the MaaS
+      gateway
+
+!!! warning "One GPU, one model"
+    The workshop GPU node has a single GPU. Do not deploy via *both*
+    approaches (or deploy the same model twice): the second deployment's
+    pod sits `Pending` with `Insufficient nvidia.com/gpu` until the first
+    is deleted.
 
 ## Step 2: Wait for the Model
 
-The KServe controller schedules the predictor pod on your GPU node. The
-pod downloads model weights from the OCI registry, which takes 5--10
-minutes:
+The KServe controller schedules the workload pod
+(`redhataigpt-oss-20b-kserve-...`) on your GPU node. The pod downloads
+model weights from the OCI registry, which takes 5--10 minutes:
 
 ```bash
 oc get pods -n gpt-oss-model --context="$CTX" -w
 ```
 
-Wait until the pod status changes from `Init` to `Running` and all
-containers are ready.
+Wait until the pod shows `2/2 Running` (the model container plus the
+llm-d routing sidecar — it sits at `1/2` while vLLM loads weights).
 
 !!! note "Model weight download"
     The gpt-oss-20b model weights are pulled from
     `registry.redhat.io/rhelai1/modelcar-gpt-oss-20b:1.5` as an OCI
-    artifact. An init container handles the download before vLLM starts.
-    If the pod stays in `Init` for more than 10 minutes, check the init
-    container logs:
-    `oc logs -n gpt-oss-model --context="$CTX" -l serving.kserve.io/inferenceservice=redhataigpt-oss-20b -c modelcar-init`
+    artifact. If the pod stays not-ready for more than 10 minutes, watch
+    the model container logs:
+    `oc logs -n gpt-oss-model --context="$CTX" -l app.kubernetes.io/name=redhataigpt-oss-20b -c main -f`
 
-## Step 3: Verify the InferenceService
+## Step 3: Verify the LLMInferenceService
 
 ```bash
-oc get inferenceservice redhataigpt-oss-20b -n gpt-oss-model --context="$CTX"
+oc get llminferenceservice redhataigpt-oss-20b -n gpt-oss-model --context="$CTX"
 ```
 
-The `READY` column should show `True`. This means the model is loaded
-and serving requests.
+The `READY` column should show `True`, and `URL` shows the MaaS-published
+endpoint — the model is already routed through the MaaS gateway:
+
+```bash
+oc get llminferenceservice redhataigpt-oss-20b -n gpt-oss-model --context="$CTX" \
+  -o jsonpath='{.status.url}{"\n"}'
+# https://inference.maas.<CLUSTER_DOMAIN>/gpt-oss-model/redhataigpt-oss-20b
+```
 
 ## Step 4: Test the Model Endpoint
 
-Create an internal service to test the model directly (bypassing KServe
-auth for in-cluster testing):
-
-```bash
-cat <<'EOF' | oc apply --context="$CTX" -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: gpt-oss-20b-test
-  namespace: gpt-oss-model
-spec:
-  selector:
-    serving.kserve.io/inferenceservice: redhataigpt-oss-20b
-  ports:
-    - port: 8080
-      targetPort: 8080
-EOF
-```
-
-Test from within the cluster:
+KServe creates an in-cluster Service for the workload —
+`redhataigpt-oss-20b-kserve-workload-svc` on port 8000 — so no extra
+test Service is needed. Test from within the cluster:
 
 ```bash
 # Note: no -t (tty) and grep-based extraction — pod lifecycle messages
@@ -116,15 +117,16 @@ Test from within the cluster:
 oc run curl-test -n gpt-oss-model --context="$CTX" --rm -i \
   --image=registry.redhat.io/ubi9/ubi-minimal:latest \
   --restart=Never -- \
-  curl -s http://gpt-oss-20b-test:8080/v1/models \
+  curl -s http://redhataigpt-oss-20b-kserve-workload-svc:8000/v1/models \
   | grep -o '"id":"[^"]*"' 
 ```
 
 You should see `redhataigpt-oss-20b` in the output.
 
 !!! note "Check the RHOAI Dashboard"
-    Open the RHOAI Dashboard and navigate to **Deployed Models**. Your
-    gpt-oss-20b model should appear with a green status indicator.
+    Open the RHOAI Dashboard: the model appears under the project's
+    **Models** with a green status, and (because it carries the
+    `genai-asset` label) under **AI hub** as an available asset.
 
 ## Try Other Models
 
@@ -147,20 +149,21 @@ To deploy a different model, use the RHOAI Dashboard Model Catalog
 ## Verify
 
 ```bash
-# InferenceService is ready
-oc get inferenceservice redhataigpt-oss-20b -n gpt-oss-model --context="$CTX" \
+# LLMInferenceService is ready
+oc get llminferenceservice redhataigpt-oss-20b -n gpt-oss-model --context="$CTX" \
   -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
 # Expected: True
 
-# Pod is running on GPU node
+# Workload pod is running on the GPU node
 oc get pods -n gpt-oss-model --context="$CTX" \
+  -l app.kubernetes.io/name=redhataigpt-oss-20b \
   -o jsonpath='{.items[0].spec.nodeName}'
 # Expected: your GPU node name
 
-# ServingRuntime exists
-oc get servingruntime redhataigpt-oss-20b -n gpt-oss-model --context="$CTX" \
-  -o jsonpath='{.metadata.name}'
-# Expected: redhataigpt-oss-20b
+# MaaS-published URL is set
+oc get llminferenceservice redhataigpt-oss-20b -n gpt-oss-model --context="$CTX" \
+  -o jsonpath='{.status.url}'
+# Expected: https://inference.maas.<CLUSTER_DOMAIN>/gpt-oss-model/redhataigpt-oss-20b
 ```
 
 ## What You Deployed
@@ -169,10 +172,8 @@ oc get servingruntime redhataigpt-oss-20b -n gpt-oss-model --context="$CTX" \
 |----------|-----------|---------|
 | Namespace `gpt-oss-model` | -- | Isolation for model serving resources |
 | Secret `gpt-oss-20b-connection` | `gpt-oss-model` | OCI connection URI for model weights |
-| ServiceAccount `redhataigpt-oss-20b-sa` | `gpt-oss-model` | Pod identity for the model server |
-| ServingRuntime `redhataigpt-oss-20b` | `gpt-oss-model` | vLLM CUDA runtime configuration |
-| InferenceService `redhataigpt-oss-20b` | `gpt-oss-model` | KServe model deployment (1 GPU, auth enabled) |
-| Service `gpt-oss-20b-test` | `gpt-oss-model` | Internal test endpoint bypassing KServe auth |
+| LLMInferenceServiceConfig `redhataigpt-oss-20b` | `gpt-oss-model` | vLLM CUDA template (per-service copy) |
+| LLMInferenceService `redhataigpt-oss-20b` | `gpt-oss-model` | llm-d model deployment (1 GPU), routed through the MaaS gateway |
 
 ---
 
