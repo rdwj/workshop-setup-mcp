@@ -7,7 +7,7 @@
         "name": "keycloak",
         "issuer": {
           "issuerURL": "KEYCLOAK_ISSUER",
-          "audiences": ["console-oidc", "oc-cli", "mcp-gateway"]
+          "audiences": ["console-oidc", "oc-cli", "mcp-gateway", "rhoai-gateway"]
         },
         "claimMappings": {
           "username": {"claim": "preferred_username", "prefixPolicy": "NoPrefix"},

@@ -31,6 +31,7 @@ spec:
       - console-oidc
       - oc-cli
       - mcp-gateway
+      - rhoai-gateway
     claimMappings:
       username:
         claim: preferred_username
