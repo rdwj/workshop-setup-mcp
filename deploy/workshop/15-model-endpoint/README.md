@@ -11,10 +11,13 @@ Otherwise, choose Option A below.
 
 Set your endpoint to the workload Service KServe created alongside the
 LLMInferenceService in Module 14 (verify with
-`oc get svc redhataigpt-oss-20b-kserve-workload-svc -n gpt-oss-model`):
+`oc get svc redhataigpt-oss-20b-kserve-workload-svc -n gpt-oss-model`).
+Note **https** — the KServe workload serves TLS with a self-signed
+cert; `http://` fails silently (curl exit 52, and the agent in Module
+16 would fail to connect):
 
 ```bash
-export MODEL_ENDPOINT="http://redhataigpt-oss-20b-kserve-workload-svc.gpt-oss-model.svc.cluster.local:8000/v1"
+export MODEL_ENDPOINT="https://redhataigpt-oss-20b-kserve-workload-svc.gpt-oss-model.svc.cluster.local:8000/v1"
 export MODEL_NAME="redhataigpt-oss-20b"
 ```
 
@@ -48,9 +51,10 @@ extraction — `oc run --rm` mixes lifecycle messages into the stream and
 breaks strict JSON parsing):
 
 ```bash
+# -k: the on-cluster KServe workload uses a self-signed TLS cert
 oc run model-check -n gpt-oss-model --context="$CTX" --rm -i \
   --image=registry.redhat.io/ubi9/ubi-minimal:latest --restart=Never -- \
-  curl -s "${MODEL_ENDPOINT}/models" \
+  curl -sk "${MODEL_ENDPOINT}/models" \
   | grep -o '"id":"[^"]*"'
 # Expected: "id":"redhataigpt-oss-20b"
 ```

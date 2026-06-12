@@ -23,8 +23,10 @@ KEYCLOAK_URL="https://$(oc get route keycloak -n keycloak --context="$CTX" -o js
 # Your external model -- students provide these. The endpoint must support
 # tool calling (vLLM: --enable-auto-tool-choice). The on-cluster
 # gpt-oss-20b deployment from Module 14 is already configured for it.
-# If you completed Modules 12-14 (on-cluster model), use:
-#   MODEL_URL="http://redhataigpt-oss-20b-kserve-workload-svc.gpt-oss-model.svc.cluster.local:8000/v1"
+# If you completed Modules 12-14 (on-cluster model), use https — the
+# KServe workload serves TLS with a self-signed cert (http fails
+# silently):
+#   MODEL_URL="https://redhataigpt-oss-20b-kserve-workload-svc.gpt-oss-model.svc.cluster.local:8000/v1"
 #   API_KEY="not-required"
 MODEL_URL="<your-openai-compatible-endpoint>/v1"   # must end with /v1
 MODEL_NAME="<your-model-id>"                        # exact model ID from /v1/models

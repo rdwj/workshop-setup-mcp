@@ -150,6 +150,19 @@ helm upgrade --install workshop-setup-mcp chart/ \
   --wait
 ```
 
+!!! warning "On-cluster model: self-signed TLS"
+
+    If `MODEL_ENDPOINT` is the on-cluster KServe workload Service
+    (Module 15), it serves TLS with a **self-signed certificate**. The
+    agent's MCP connection succeeding (the "N tool(s)" log line) does
+    NOT exercise the model path — send a chat message (Module 17) to
+    confirm inference works. If model calls fail with a certificate
+    verification error in the agent logs, the Python client is
+    rejecting the self-signed cert; the simplest fix is exporting the
+    KServe cert into the agent's trust store, or fronting the model via
+    the MaaS endpoint with an API key. Report this if you hit it — it
+    is a known-untested path.
+
 ## Step 6: Deploy the Gateway Proxy
 
 The gateway proxy sits between the chat UI and the agent, handling auth
