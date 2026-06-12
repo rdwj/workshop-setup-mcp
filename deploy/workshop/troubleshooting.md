@@ -143,11 +143,16 @@ valid-looking token.
 **Cause:** Another operator in the namespace uses Manual approval mode.
 OLM inherits the approval mode from the OperatorGroup.
 
-**Fix:** Approve pending install plans:
+**Fix:** Approve pending install plans — but never the parked RHCL
+upgrade plan (the workshop pins RHCL to 1.3.x; Module 1 explains why):
 
 ```bash
 for plan in $(oc get installplan -n openshift-operators \
   -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+  if oc get installplan "$plan" -n openshift-operators \
+    -o jsonpath='{.spec.clusterServiceVersionNames}' | grep -q 'rhcl-operator.v1.4'; then
+    echo "skipping $plan (parked RHCL upgrade — pinned to 1.3.x)"; continue
+  fi
   oc patch installplan "$plan" -n openshift-operators \
     --type=merge -p '{"spec":{"approved":true}}'
 done

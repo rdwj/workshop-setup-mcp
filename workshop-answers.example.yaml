@@ -31,6 +31,9 @@ run:
 decisions:
   # Module 0–2
   approve_pending_installplans: yes        # auto-approve stuck OLM InstallPlans
+  # EXCEPTION: never approve a plan whose CSV list contains
+  # rhcl-operator.v1.4* — that parked plan is the RHCL 1.3.x version pin
+  # (Module 1). Approving it upgrades RHCL to 1.4.0.
   patch_lifecycle_operator_memory: yes     # 128Mi -> 512Mi (known OOM)
   patch_kuadrant_operator_memory_if_crashlooping: yes  # 300Mi -> 1Gi (known OOM; required for AuthPolicy reconciliation)
   # Module 3 — security posture (locked in by the restructure plan)
