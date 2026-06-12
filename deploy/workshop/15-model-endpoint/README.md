@@ -9,13 +9,12 @@ Otherwise, choose Option A below.
 
 ## If You Completed Modules 12--14: Use Your Deployed Model
 
-Set your endpoint to the internal service created in Module 14. This is
-the `gpt-oss-20b-test` Service from **Module 14 Step 4** — if you skipped
-that step, go back and create it now (`oc get svc gpt-oss-20b-test -n
-gpt-oss-model` to check):
+Set your endpoint to the workload Service KServe created alongside the
+LLMInferenceService in Module 14 (verify with
+`oc get svc redhataigpt-oss-20b-kserve-workload-svc -n gpt-oss-model`):
 
 ```bash
-export MODEL_ENDPOINT="http://gpt-oss-20b-test.gpt-oss-model.svc.cluster.local:8080/v1"
+export MODEL_ENDPOINT="http://redhataigpt-oss-20b-kserve-workload-svc.gpt-oss-model.svc.cluster.local:8000/v1"
 export MODEL_NAME="redhataigpt-oss-20b"
 ```
 

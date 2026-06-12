@@ -31,6 +31,9 @@ run:
 decisions:
   # Module 0–2
   approve_pending_installplans: yes        # auto-approve stuck OLM InstallPlans
+  # EXCEPTION: never approve a plan whose CSV list contains
+  # rhcl-operator.v1.4* — that parked plan is the RHCL 1.3.x version pin
+  # (Module 1). Approving it upgrades RHCL to 1.4.0.
   patch_lifecycle_operator_memory: yes     # 128Mi -> 512Mi (known OOM)
   patch_kuadrant_operator_memory_if_crashlooping: yes  # 300Mi -> 1Gi (known OOM; required for AuthPolicy reconciliation)
   # Module 3 — security posture (locked in by the restructure plan)
@@ -106,7 +109,11 @@ model:                                      # Track C only
 #   M2 (after Module 5): tools/list via gateway shows the 15 OpenShift tools
 #       (UNPREFIXED in MCP Gateway v0.7.0) + 2 gateway tools (discover_tools,
 #       select_tools)
-#   M3 (after Module 7): oc whoami --token=<developer-a JWT> → developer-a
+#   M3 (after Module 7): oc whoami --token=<developer-a JWT> → developer-a;
+#       gatewayconfig default-gateway Ready=True; kube-auth-proxy-creds
+#       OAUTH2_PROXY_CLIENT_ID decodes to rhoai-gateway (NOT data-science —
+#       if it doesn't, the create-once secret wasn't recreated; see Module 7
+#       Step 5)
 #   M4 (after Module 8): unauthenticated /mcp → 401; all 3 AuthPolicies
 #       Accepted; client + per-route Enforced; backend default may show
 #       Enforced=False reason=Overridden (expected)

@@ -8,6 +8,7 @@ metadata:
 spec:
   gatewayClassName: data-science-gateway-class
   listeners:
+    # Wildcard listener: per-model inference hosts (inference.maas.<domain>, ...)
     - name: https
       protocol: HTTPS
       port: 443
@@ -16,6 +17,26 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: maas-default-gateway-cert
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All
+    # Apex listener: the MaaS API host (maas.<CLUSTER_DOMAIN>) the RHOAI
+    # dashboard calls for model listing and API keys. A wildcard listener
+    # does NOT match its own apex — without this listener, dashboard MaaS
+    # requests die with EOF (no SNI match at Envoy). The dashboard BFF
+    # verifies TLS, so this listener must use the cluster's default
+    # ingress wildcard certificate (covers maas.<apps-domain>), not the
+    # self-signed *.maas cert. <DEFAULT_INGRESS_CERT_SECRET> is derived
+    # in the README.
+    - name: https-maas-root
+      protocol: HTTPS
+      port: 443
+      hostname: "maas.<CLUSTER_DOMAIN>"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: <DEFAULT_INGRESS_CERT_SECRET>
             kind: Secret
       allowedRoutes:
         namespaces:

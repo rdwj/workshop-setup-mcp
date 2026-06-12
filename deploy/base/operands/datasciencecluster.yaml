@@ -10,7 +10,10 @@ spec:
         managementState: Removed
       nim:
         managementState: Removed
-      rawDeploymentServiceConfig: Headless
+      # Headed, never Headless, on OpenShift: Headless breaks OpenShift
+      # Route behavior for raw deployments (per the validated MaaS
+      # reference configuration for RHOAI 3.4).
+      rawDeploymentServiceConfig: Headed
     modelregistry:
       managementState: Managed
       registriesNamespace: rhoai-model-registries

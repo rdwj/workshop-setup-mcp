@@ -79,3 +79,4 @@ workshop-answers.yaml
 
 # Agent run notes (review artifacts, not for commit)
 workshop-run-notes-*.md
+docs/mcp-gateway-lessons-learned.md

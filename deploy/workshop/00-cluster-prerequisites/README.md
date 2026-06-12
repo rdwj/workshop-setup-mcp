@@ -86,6 +86,10 @@ for plan in $(oc get installplan -n openshift-operators --context="$CTX" \
 done
 ```
 
+> If you re-run this loop *after* Module 1, skip any plan whose CSV list
+> contains `rhcl-operator.v1.4` — that parked plan is the RHCL 1.3.x
+> version pin working as intended (see Module 1).
+
 ## Step 3: Second Pass (and Third) -- Operands
 
 Once all operators show `Succeeded`, run the overlay again. This time the

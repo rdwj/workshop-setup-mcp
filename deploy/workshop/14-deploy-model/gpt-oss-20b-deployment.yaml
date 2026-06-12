@@ -1,4 +1,10 @@
 ---
+# Deploys gpt-oss-20b the way the RHOAI 3.4 Model Catalog does: as an
+# LLMInferenceService (the llm-d serving path). This resource type is
+# MaaS-native — its router attaches to the maas-default-gateway from
+# Module 13, so the model is published at
+# https://inference.maas.<CLUSTER_DOMAIN>/gpt-oss-model/redhataigpt-oss-20b
+# with no separate "add to MaaS" step.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -23,95 +29,59 @@ type: Opaque
 stringData:
   URI: "oci://registry.redhat.io/rhelai1/modelcar-gpt-oss-20b:1.5"
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redhataigpt-oss-20b-sa
-  namespace: gpt-oss-model
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: default-token-redhataigpt-oss-20b-sa
-  namespace: gpt-oss-model
-  labels:
-    opendatahub.io/dashboard: "true"
-  annotations:
-    kubernetes.io/service-account.name: redhataigpt-oss-20b-sa
-    openshift.io/display-name: default-token
-type: kubernetes.io/service-account-token
----
-apiVersion: serving.kserve.io/v1alpha1
-kind: ServingRuntime
+# Per-service copy of the well-known vLLM NVIDIA CUDA template
+# (v3-4-0-kserve-config-llm-template-nvidia-cuda) — this is exactly what
+# the dashboard creates on a catalog deploy. The LLMInferenceService
+# below references it via baseRefs. On RHOAI releases newer than 3.4,
+# compare against the current well-known config:
+#   oc get llminferenceserviceconfig -A | grep nvidia-cuda
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceServiceConfig
 metadata:
   name: redhataigpt-oss-20b
   namespace: gpt-oss-model
-  labels:
-    opendatahub.io/dashboard: "true"
   annotations:
-    opendatahub.io/apiProtocol: REST
-    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
-    opendatahub.io/runtime-version: v0.18.0
-    opendatahub.io/serving-runtime-scope: global
-    opendatahub.io/template-display-name: vLLM NVIDIA GPU ServingRuntime for KServe
-    opendatahub.io/template-name: vllm-cuda-runtime-template
-    openshift.io/display-name: vLLM NVIDIA GPU ServingRuntime for KServe
+    openshift.io/description: vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig for LLMInferenceService.
+    openshift.io/display-name: vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig
 spec:
-  annotations:
-    opendatahub.io/kserve-runtime: vllm
-    prometheus.io/path: /metrics
-    prometheus.io/port: "8080"
-  containers:
-  - name: kserve-container
-    image: registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:ad06abf3bb5235ebb5b2df84cd1b9fd09e823f0ff2eebfc82bb4590275ccfe0b
-    command:
-    - python
-    - -m
-    - vllm.entrypoints.openai.api_server
-    args:
-    - --port=8080
-    - --model=/mnt/models
-    - --served-model-name={{.Name}}
-    env:
-    - name: HF_HOME
-      value: /tmp/hf_home
-    ports:
-    - containerPort: 8080
-      protocol: TCP
-  multiModel: false
-  supportedModelFormats:
-  - autoSelect: true
-    name: vLLM
+  model:
+    uri: ""
+  template:
+    containers:
+    - name: main
+      image: registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:ad06abf3bb5235ebb5b2df84cd1b9fd09e823f0ff2eebfc82bb4590275ccfe0b
+      resources: {}
 ---
-apiVersion: serving.kserve.io/v1beta1
-kind: InferenceService
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
 metadata:
   name: redhataigpt-oss-20b
   namespace: gpt-oss-model
   labels:
-    networking.kserve.io/visibility: exposed
     opendatahub.io/dashboard: "true"
     opendatahub.io/genai-asset: "true"
   annotations:
-    modelFormat: vLLM
     opendatahub.io/connections: gpt-oss-20b-connection
     opendatahub.io/hardware-profile-name: nvidia-gpu
     opendatahub.io/hardware-profile-namespace: redhat-ods-applications
     opendatahub.io/model-type: generative
     openshift.io/display-name: "RedHatAI/gpt-oss-20b"
-    security.opendatahub.io/enable-auth: "true"
-    serving.kserve.io/deploymentMode: Standard
 spec:
-  predictor:
-    automountServiceAccountToken: false
-    deploymentStrategy:
-      type: RollingUpdate
-    maxReplicas: 1
-    minReplicas: 1
-    model:
-      modelFormat:
-        name: vLLM
-      name: ""
+  baseRefs:
+  - name: redhataigpt-oss-20b
+  model:
+    name: redhataigpt-oss-20b
+    uri: "oci://registry.redhat.io/rhelai1/modelcar-gpt-oss-20b:1.5"
+  replicas: 1
+  router:
+    gateway:
+      refs:
+      - name: maas-default-gateway
+        namespace: openshift-ingress
+    route: {}
+  template:
+    containers:
+    - name: main
       resources:
         limits:
           cpu: "2"
@@ -121,9 +91,6 @@ spec:
           cpu: "2"
           memory: 8Gi
           nvidia.com/gpu: "1"
-      runtime: redhataigpt-oss-20b
-      storageUri: "oci://registry.redhat.io/rhelai1/modelcar-gpt-oss-20b:1.5"
-    timeout: 30
     tolerations:
     - key: nvidia.com/gpu
       operator: Exists
