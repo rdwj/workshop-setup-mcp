@@ -40,15 +40,12 @@ oc get csv -n openshift-operators --context="$CTX" \
 
 You should see `cluster-observability-operator.v*` reach `Succeeded`.
 
-> **Note:** If the InstallPlan requires manual approval, approve it —
-> but check it first: a parked plan containing `rhcl-operator.v1.4` is
-> the RHCL version pin from Module 1 and must stay unapproved.
+> **Note:** If the InstallPlan requires manual approval, approve it:
 >
 > ```bash
-> oc get installplan -n openshift-operators --context="$CTX" \
->   -o custom-columns='NAME:.metadata.name,APPROVED:.spec.approved,CSVs:.spec.clusterServiceVersionNames'
-> # approve only the COO plan:
-> oc patch installplan <plan-name> -n openshift-operators --context="$CTX" \
+> PLAN=$(oc get installplan -n openshift-operators --context="$CTX" \
+>   -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}')
+> oc patch installplan "$PLAN" -n openshift-operators --context="$CTX" \
 >   --type=merge -p '{"spec":{"approved":true}}'
 > ```
 

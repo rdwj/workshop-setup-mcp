@@ -5,14 +5,7 @@ metadata:
   namespace: openshift-operators
 spec:
   channel: stable
-  # Pinned to 1.3.x: the known-good MaaS reference configuration
-  # (eartvit/ocp-rhoai34-maas) reports RHCL 1.4.0 breaking RHOAI 3.4
-  # integration. Manual approval + startingCSV holds the version: OLM
-  # creates an InstallPlan for 1.3.4 (approve it), and later upgrade
-  # plans to 1.4.x stay parked unapproved. Do NOT blanket-approve
-  # InstallPlans for this subscription. See the Module 1 README.
-  installPlanApproval: Manual
-  startingCSV: rhcl-operator.v1.3.4
+  installPlanApproval: Automatic
   name: rhcl-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace

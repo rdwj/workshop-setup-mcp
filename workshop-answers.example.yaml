@@ -30,10 +30,7 @@ run:
 
 decisions:
   # Module 0–2
-  approve_pending_installplans: yes        # auto-approve stuck OLM InstallPlans
-  # EXCEPTION: never approve a plan whose CSV list contains
-  # rhcl-operator.v1.4* — that parked plan is the RHCL 1.3.x version pin
-  # (Module 1). Approving it upgrades RHCL to 1.4.0.
+  approve_pending_installplans: yes        # auto-approve stuck OLM InstallPlans (incl. plans that bundle operator upgrades)
   patch_lifecycle_operator_memory: yes     # 128Mi -> 512Mi (known OOM)
   patch_kuadrant_operator_memory_if_crashlooping: yes  # 300Mi -> 1Gi (known OOM; required for AuthPolicy reconciliation)
   # Module 3 — security posture (locked in by the restructure plan)
@@ -74,13 +71,14 @@ keycloak:
       group: mcp-users                      # read-only subset
 
 github:                                     # Track B only
-  # Module 10 — shared PAT for broker tool discovery (read:user minimum;
-  # stored in the github-mcp-token Secret, label mcp.kuadrant.io/secret=true).
-  # Reusing developer-a's PAT here is fine for the workshop — discovery
-  # only lists tools; per-user injection (Module 11) covers actual calls.
+  # Module 10 — this is the value for <YOUR_GITHUB_PAT> in the
+  # `oc create secret generic github-mcp-token` command (read:user
+  # minimum; the Secret gets the label mcp.kuadrant.io/secret=true).
+  # Used only for broker tool discovery; per-user injection (Module 11)
+  # covers actual calls, so reusing developer-a's PAT here is fine.
   discovery_pat: "<ghp_SHARED_DISCOVERY_PAT or reuse developer-a's>"
-  # Module 11 — one PAT per workshop user, seeded into Vault at
-  # secret/mcp-gateway/users/<username>/github (key github_pat).
+  # Module 11 — the values for the per-user `vault kv put` seeding
+  # commands: secret/mcp-gateway/users/<username>/github (key github_pat).
   # REQUIREMENTS (see Module 11 README): fine-grained PATs, ideally from
   # two different GitHub accounts; per-user repository scoping;
   # Contents: Read AND write (public repos are readable by every
@@ -117,8 +115,11 @@ model:                                      # Track C only
 #   M4 (after Module 8): unauthenticated /mcp → 401; all 3 AuthPolicies
 #       Accepted; client + per-route Enforced; backend default may show
 #       Enforced=False reason=Overridden (expected)
-#   M5 (after Module 9): tools/list counts DIFFER per user (dev-a 15+2,
-#       dev-b 8+2 on core path; names unprefixed); developer-b denied on
+#   M5 (after Module 9): tools/list counts DIFFER per user (dev-a 15,
+#       dev-b 8 on core path; names unprefixed; gateway-native
+#       discover_tools/select_tools are wristband-filtered for
+#       authenticated users — only unauthenticated discovery shows them);
+#       developer-b denied on
 #       pods_run (HTTP 500 wrapping the Rego 403 on the hairpin initialize —
 #       that IS the denial); developer-a runs a pod via pods_run; audit log
 #       attributes to developer-a

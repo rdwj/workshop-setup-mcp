@@ -109,15 +109,20 @@ oc get llminferenceservice redhataigpt-oss-20b -n gpt-oss-model --context="$CTX"
 
 KServe creates an in-cluster Service for the workload —
 `redhataigpt-oss-20b-kserve-workload-svc` on port 8000 — so no extra
-test Service is needed. Test from within the cluster:
+test Service is needed. **The workload serves TLS** (KServe mounts
+self-signed certs at `/var/run/kserve/tls`), so the test must use
+`https://` with `-k`; plain `http://` fails silently with curl exit
+code 52 and no output, even though the model is healthy. Test from
+within the cluster:
 
 ```bash
-# Note: no -t (tty) and grep-based extraction — pod lifecycle messages
-# share the stream and break strict JSON parsing
+# Note: https + -k (self-signed KServe cert); no -t (tty) and
+# grep-based extraction — pod lifecycle messages share the stream and
+# break strict JSON parsing
 oc run curl-test -n gpt-oss-model --context="$CTX" --rm -i \
   --image=registry.redhat.io/ubi9/ubi-minimal:latest \
   --restart=Never -- \
-  curl -s http://redhataigpt-oss-20b-kserve-workload-svc:8000/v1/models \
+  curl -sk https://redhataigpt-oss-20b-kserve-workload-svc:8000/v1/models \
   | grep -o '"id":"[^"]*"' 
 ```
 

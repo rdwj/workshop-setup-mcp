@@ -54,8 +54,11 @@ claude mcp add --transport http mcp-gateway "${GATEWAY_URL}" \
 
 Then in a Claude Code session, run `/mcp` to confirm the connection and
 list the tools. You should see the **admin** tool set (all 15 OpenShift
-tools (plus the gateway's `discover_tools`/`select_tools`), including the
-write tool `pods_run`).
+tools, including the write tool `pods_run`). Note: the gateway-native
+`discover_tools`/`select_tools` appear in *unauthenticated* discovery
+(Module 5) but are filtered out once the wristband is active — they are
+not in any user's allowed-tools claim. Seeing exactly your backend
+tools, and nothing else, is correct.
 
 The TLS chain works because the gateway hostname is a single-level
 subdomain covered by the cluster's wildcard certificate — this is why
@@ -83,8 +86,8 @@ developer-b sees only the read-only subset — the broker filtered
 `tools/list` using the wristband (allowed-tools from their client roles)
 intersected with their VirtualMCPServer (`user-tools`). With the core path
 deployed, expect developer-a to see all 15 OpenShift tools and
-developer-b the 8-tool read-only subset (both also see the two
-gateway-native tools). If **both users see the same full list**, the client-plane
+developer-b the 8-tool read-only subset (the gateway-native tools are
+wristband-filtered for both). If **both users see the same full list**, the client-plane
 AuthPolicy is not executing — verify it targets the broker's HTTPRoute
 `mcp-gateway-route` (Module 8), not a Gateway listener.
 

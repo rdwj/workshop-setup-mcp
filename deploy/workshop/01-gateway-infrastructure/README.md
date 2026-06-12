@@ -26,53 +26,51 @@ Service Mesh 3 already present on the cluster.
 ## Step 1: Install the RHCL Operator
 
 The Red Hat Connectivity Link (RHCL) operator provides the GatewayClass that
-both the MaaS and MCP gateways use. The subscription **pins RHCL to 1.3.4
-with Manual approval**: the known-good MaaS reference configuration reports
-RHCL 1.4.0 breaking RHOAI 3.4 integration, so the workshop stays on the
-1.3.x line. (Workshop validation runs have also passed on clusters that
-auto-upgraded to 1.4.0 — the pin is conservative, not a hard incompatibility
-on every path.)
+both the MaaS and MCP gateways use. Install it as a Subscription in
+`openshift-operators`:
 
 ```bash
 oc apply -f rhcl-subscription.yaml
 ```
 
-With Manual approval, OLM parks the install in an InstallPlan waiting for
-you. Approve the plan that installs `rhcl-operator.v1.3.4`:
-
-```bash
-oc get installplan -n openshift-operators
-# find the plan whose CSV list includes rhcl-operator.v1.3.4, then:
-oc patch installplan <plan-name> -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
-```
-
-Wait for the CSV to reach `Succeeded`. This can take 2--3 minutes:
+Wait for the CSV to reach `Succeeded`. This can take 2--3 minutes (the
+stable channel may install a 1.3.x CSV and immediately upgrade to 1.4.x —
+both are fine):
 
 ```bash
 oc get csv -n openshift-operators | grep rhcl
 ```
 
-You should see `rhcl-operator.v1.3.4` with phase `Succeeded`.
+!!! note "On RHCL versions"
 
-!!! warning "Do NOT blanket-approve InstallPlans for RHCL"
+    One external MaaS reference configuration reports RHCL 1.4.0 breaking
+    RHOAI 3.4 integration. This workshop has been validated end to end on
+    both 1.3.4 and 1.4.0 and has never reproduced that breakage. We
+    previously tried pinning to 1.3.4 (Manual approval + `startingCSV`),
+    but OLM bundles new operator installs in `openshift-operators` into
+    the same InstallPlan as the parked RHCL upgrade — which blocks the
+    MCP Gateway operator install in Module 2. The pin is therefore not
+    viable in a shared namespace; if you ever need it, install the MCP
+    Gateway operator in its own namespace first.
 
-    Because the subscription is pinned, OLM will soon create a *second*
-    InstallPlan offering the upgrade to `rhcl-operator.v1.4.0`. **Leave it
-    unapproved** — that parked plan is the pin working as intended. Before
-    approving any plan in `openshift-operators`, check what it installs:
+!!! warning "InstallPlan May Require Approval"
+
+    On some clusters, OLM bundles the install plan with dependencies from
+    other operators and sets it to Manual approval -- even when the
+    subscription specifies Automatic. If the CSV doesn't appear after
+    2--3 minutes, check for pending InstallPlans:
 
     ```bash
-    oc get installplan -n openshift-operators \
-      -o custom-columns='NAME:.metadata.name,APPROVED:.spec.approved,CSVs:.spec.clusterServiceVersionNames'
+    oc get installplan -n openshift-operators
     ```
 
-    Approve plans for other operators (Service Mesh upgrades, etc.)
-    normally; skip any plan whose CSV list contains `rhcl-operator.v1.4`.
-    OLM may bundle the RHCL 1.3.4 install into the same InstallPlan as a
-    pending Service Mesh upgrade — that combined plan is fine to approve.
-    The fast signal that something is waiting is
-    `oc get subscription rhcl-operator -n openshift-operators -o jsonpath='{.status.state}'`
-    showing `UpgradePending`.
+    OLM may bundle the RHCL install into the same InstallPlan as a pending Service Mesh upgrade — approving every unapproved plan (below) handles both. The fast signal is `oc get subscription rhcl-operator -n openshift-operators -o jsonpath='{.status.state}'` showing `UpgradePending`. Approving one plan can immediately surface another pending one — re-run the loop until none remain. If you see any with `APPROVED=false`, approve them:
+
+    ```bash
+    for plan in $(oc get installplan -n openshift-operators -o jsonpath='{.items[?(@.spec.approved==false)].metadata.name}'); do
+      oc patch installplan "$plan" -n openshift-operators --type=merge -p '{"spec":{"approved":true}}'
+    done
+    ```
 
 ## Step 2: Create the Kuadrant Namespace
 
