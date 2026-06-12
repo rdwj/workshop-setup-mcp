@@ -64,8 +64,35 @@ MaaS requires a dedicated Gateway named `maas-default-gateway` in the
 `openshift-ingress` namespace. The RHOAI operator does not create this
 automatically.
 
+The Gateway has **two listeners**, and the distinction matters:
+
+- `*.maas.<domain>` (wildcard) — per-model inference hosts.
+- `maas.<domain>` (apex) — the MaaS API host the RHOAI dashboard calls
+  for model listing and API keys. **A wildcard listener does not match
+  its own apex.** Without this listener, the dashboard's MaaS requests
+  die with EOF (no SNI match at Envoy), the AI asset endpoints page
+  shows "Models as a Service could not be loaded", and the API keys
+  page shows "Error loading components". The dashboard verifies TLS on
+  this call, so the apex listener uses the cluster's **default ingress
+  wildcard certificate** (which covers `maas.<apps-domain>`), not the
+  self-signed cert.
+
+Find the default ingress certificate secret (it lives in
+`openshift-ingress`):
+
 ```bash
-sed "s/<CLUSTER_DOMAIN>/${CLUSTER_DOMAIN}/g" maas-gateway.yaml \
+DEFAULT_INGRESS_CERT_SECRET=$(oc get ingresscontroller default \
+  -n openshift-ingress-operator --context="$CTX" \
+  -o jsonpath='{.spec.defaultCertificate.name}')
+echo "$DEFAULT_INGRESS_CERT_SECRET"   # e.g. cert-manager-ingress-cert
+```
+
+Apply the Gateway:
+
+```bash
+sed -e "s/<CLUSTER_DOMAIN>/${CLUSTER_DOMAIN}/g" \
+    -e "s/<DEFAULT_INGRESS_CERT_SECRET>/${DEFAULT_INGRESS_CERT_SECRET}/g" \
+    maas-gateway.yaml \
   | oc apply --context="$CTX" -f -
 ```
 
@@ -93,6 +120,18 @@ rm -f /tmp/maas-gateway.key /tmp/maas-gateway.crt
     DNS name, not the external `*.maas.<domain>` hostname. The Gateway
     needs a cert whose SAN matches its listener hostname, otherwise
     Envoy returns `filter_chain_not_found`.
+
+Verify the apex host serves the MaaS API with a verifiable certificate
+(run in a throwaway pod; the host resolves only via the cluster router):
+
+```bash
+oc run maas-check -n default --context="$CTX" --rm -i \
+  --image=registry.redhat.io/ubi9/ubi-minimal:latest --restart=Never -- \
+  curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://maas.${CLUSTER_DOMAIN}/maas-api/health"
+# Expected: 200 — and note: no -k. If this only works with -k, the
+# dashboard's MaaS pages will still fail.
+```
 
 Wait for the Gateway to be accepted:
 
