@@ -323,6 +323,20 @@ curl -sk -o /dev/null -w '%{redirect_url}\n' "https://rh-ai.${CLUSTER_DOMAIN}/"
       added it after the fact, expect another 10–15 minute
       kube-apiserver rollout before logins work.
 
+Finally, make the workshop admins *dashboard* admins. The RHOAI dashboard
+gates its admin features (Settings, MaaS model management, parts of Gen AI
+Studio) on its own `Auth` CR — being K8s `cluster-admin` via the Step 3
+group binding is **not** consulted:
+
+```bash
+oc patch auth auth --context="$CTX" --type=merge \
+  -p '{"spec":{"adminGroups":["rhods-admins","mcp-admins"]}}'
+```
+
+Admin standing is computed at session start — log out of the dashboard
+and back in to pick it up (Settings appearing in the left nav is the
+tell).
+
 ---
 
 ## What You Built
