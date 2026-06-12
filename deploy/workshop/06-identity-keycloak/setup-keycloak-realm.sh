@@ -7,6 +7,7 @@
 #   - mcp-gateway client (service account enabled, direct access grants)
 #   - console-oidc client (confidential, for OpenShift console OIDC login)
 #   - oc-cli client (public, for OpenShift CLI OIDC login)
+#   - rhoai-gateway client (confidential, for the RHOAI Data Science Gateway)
 #   - Audience mapper on mcp-gateway client (for K8s API token validation)
 #   - Groups: mcp-admins, mcp-users, mcp-github
 #   - "groups" client scope with oidc-group-membership-mapper
@@ -130,8 +131,32 @@ HTTP=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
     "standardFlowEnabled": true,
     "directAccessGrantsEnabled": false,
     "serviceAccountsEnabled": false,
-    "redirectUris": ["http://localhost:8080"]
+    "redirectUris": ["http://localhost*", "http://127.0.0.1*"]
   }')
+case "$HTTP" in
+  201) echo "  Created client" ;;
+  409) echo "  Client exists" ;;
+  *)   echo "  ERROR: HTTP ${HTTP}" ;;
+esac
+
+echo "--- Creating rhoai-gateway client (RHOAI Data Science Gateway) ---"
+# Used in Module 7 to reconnect the OpenShift AI dashboard after External
+# OIDC. The RHOAI gateway serves the dashboard at rh-ai.<CLUSTER_DOMAIN>;
+# its kube-auth-proxy (oauth2-proxy) calls back on /oauth2/callback.
+HTTP=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients" \
+  -d "{
+    \"clientId\": \"rhoai-gateway\",
+    \"name\": \"RHOAI Data Science Gateway\",
+    \"enabled\": true,
+    \"publicClient\": false,
+    \"standardFlowEnabled\": true,
+    \"directAccessGrantsEnabled\": false,
+    \"serviceAccountsEnabled\": false,
+    \"redirectUris\": [\"https://rh-ai.${CLUSTER_DOMAIN}/*\"]
+  }")
 case "$HTTP" in
   201) echo "  Created client" ;;
   409) echo "  Client exists" ;;
@@ -184,12 +209,15 @@ curl -sk -X PUT -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${CLIENT_UUID}/default-client-scopes/${GROUPS_SCOPE_ID}"
 echo "  Done"
 
-echo "--- Assigning 'groups' scope to console-oidc and oc-cli clients ---"
+echo "--- Assigning 'groups' scope to console-oidc, oc-cli, and rhoai-gateway clients ---"
 CONSOLE_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=console-oidc" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
 OC_CLI_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=oc-cli" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
+RHOAI_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=rhoai-gateway" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])" 2>/dev/null)
 
 if [ -n "$CONSOLE_UUID" ]; then
@@ -201,6 +229,11 @@ if [ -n "$OC_CLI_UUID" ]; then
   curl -sk -X PUT -H "Authorization: Bearer ${ADMIN_TOKEN}" \
     "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${OC_CLI_UUID}/default-client-scopes/${GROUPS_SCOPE_ID}"
   echo "  oc-cli: assigned"
+fi
+if [ -n "$RHOAI_UUID" ]; then
+  curl -sk -X PUT -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+    "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${RHOAI_UUID}/default-client-scopes/${GROUPS_SCOPE_ID}"
+  echo "  rhoai-gateway: assigned"
 fi
 
 echo "--- Assigning built-in 'roles' scope to mcp-gateway client ---"
@@ -305,7 +338,7 @@ create_user() {
     -H "Authorization: Bearer ${ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     "${KEYCLOAK_URL}/admin/realms/mcp-gateway/users" \
-    -d "{\"username\":\"${USERNAME}\",\"firstName\":\"${FIRST}\",\"lastName\":\"${LAST}\",\"email\":\"${EMAIL}\",\"enabled\":true,\"credentials\":[{\"type\":\"password\",\"value\":\"${PASSWORD}\",\"temporary\":false}]}")
+    -d "{\"username\":\"${USERNAME}\",\"firstName\":\"${FIRST}\",\"lastName\":\"${LAST}\",\"email\":\"${EMAIL}\",\"emailVerified\":true,\"enabled\":true,\"credentials\":[{\"type\":\"password\",\"value\":\"${PASSWORD}\",\"temporary\":false}]}")
   case "$HTTP" in
     201) echo "  Created user" >&2 ;;
     409) echo "  User exists" >&2 ;;

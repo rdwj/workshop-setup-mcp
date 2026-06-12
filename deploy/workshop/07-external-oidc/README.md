@@ -11,7 +11,7 @@ server, which uses it for K8s API calls under the *user's* RBAC, with the
 **Time:** 20--30 minutes (plus 10--15 minutes of kube-apiserver rollout)
 
 **Prerequisites:**
-- Module 6 complete (Keycloak realm with `console-oidc` and `oc-cli` clients)
+- Module 6 complete (Keycloak realm with `console-oidc`, `oc-cli`, and `rhoai-gateway` clients)
 - Cluster-admin access via a method that survives this change (see warning)
 
 > **Working directory:**
@@ -69,8 +69,21 @@ What you can do about each thing you might miss:
   the same IdP buttons the classic OpenShift page did; for most
   enterprises, "console redirects to corporate SSO" is the desired end
   state (an Entra ID deployment redirects to Microsoft login).
-- **CLI access** — `oc login` works via the `oc-cli` public client (OIDC
-  exec plugin); automation uses ServiceAccount tokens, which are unaffected.
+- **CLI access** — `oc login` works via the `oc-cli` public client and the
+  OIDC exec plugin:
+
+  ```bash
+  oc login https://api.<cluster>:6443 \
+    --issuer-url ${KEYCLOAK_ISSUER} \
+    --exec-plugin oc-oidc --client-id oc-cli
+  ```
+
+  The plugin opens a browser and listens on a **random localhost port** for
+  the OAuth callback — which is why the `oc-cli` Keycloak client uses
+  wildcard redirect URIs (`http://localhost*`, `http://127.0.0.1*`). An
+  exact redirect URI causes Keycloak to reject the login with
+  `Invalid parameter: redirect_uri`. Automation should keep using
+  ServiceAccount tokens, which are unaffected.
 - **Break-glass** — SA tokens and certificate kubeconfigs keep working
   (that's the warning box above).
 
@@ -216,6 +229,100 @@ oc auth can-i create configmaps -n mcp-ecosystem --token="$DEV_B_TOKEN" --server
 Open the console URL in a browser — it should redirect to Keycloak for
 login. Log in as `developer-a`.
 
+## Step 5: Reconnect the OpenShift AI Dashboard
+
+The RHOAI 3.x dashboard is served behind the **Data Science Gateway**
+(`https://rh-ai.<CLUSTER_DOMAIN>`), whose auth layer — `kube-auth-proxy`,
+an oauth2-proxy derivative running in `openshift-ingress` — authenticates
+against the integrated OAuth server by default. After this module that
+server no longer exists, and the gateway does not inherit the cluster's
+OIDC config: its `GatewayConfig` goes `Ready=False` with
+`Cluster is in OIDC mode but GatewayConfig has no OIDC configuration`,
+and the dashboard is unreachable. It needs the same treatment the console
+got in Step 1 — its own OIDC client, wired explicitly.
+
+Check the symptom first:
+
+```bash
+oc get gatewayconfig default-gateway --context="$CTX"
+# READY=False, REASON=NotReady until configured
+```
+
+Retrieve the `rhoai-gateway` client secret (created by the Module 6 realm
+script) and store it where the GatewayConfig expects:
+
+```bash
+RHOAI_UUID=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients?clientId=rhoai-gateway" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+
+RHOAI_SECRET=$(curl -sk -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  "${KEYCLOAK_URL}/admin/realms/mcp-gateway/clients/${RHOAI_UUID}/client-secret" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
+
+oc create secret generic rhoai-oidc-client-secret \
+  -n openshift-ingress --context="$CTX" \
+  --from-literal=clientSecret="${RHOAI_SECRET}"
+```
+
+Patch the GatewayConfig. Note `cookie.refresh: 30m` — the gateway requires
+it to be **less than** the OIDC provider's access-token lifespan, and the
+default (1h) exactly equals this workshop's Keycloak setting:
+
+```bash
+oc patch gatewayconfig default-gateway --context="$CTX" --type=merge -p "{
+  \"spec\": {
+    \"cookie\": {\"refresh\": \"30m0s\"},
+    \"oidc\": {
+      \"clientID\": \"rhoai-gateway\",
+      \"issuerURL\": \"${KEYCLOAK_ISSUER}\",
+      \"clientSecretRef\": {\"name\": \"rhoai-oidc-client-secret\", \"key\": \"clientSecret\"},
+      \"secretNamespace\": \"openshift-ingress\"
+    }
+  }
+}"
+```
+
+> **The create-once credentials trap.** `GatewayConfig` will report
+> `Ready=True` and the dashboard will redirect to Keycloak — **with the
+> wrong client ID**. The operator renders `spec.oidc` into the
+> `kube-auth-proxy-creds` Secret only at creation time (it also holds the
+> session-cookie secret, so updates would invalidate every session) and
+> never reconciles it afterwards. Since RHOAI was installed before this
+> module, that Secret already exists with an auto-generated
+> `data-science` client ID. Delete it so the operator recreates it from
+> `spec.oidc`, then restart the proxy:
+>
+> ```bash
+> oc delete secret kube-auth-proxy-creds -n openshift-ingress --context="$CTX"
+> # wait for the operator to recreate it (~30s), then:
+> oc get secret kube-auth-proxy-creds -n openshift-ingress --context="$CTX" \
+>   -o jsonpath='{.data.OAUTH2_PROXY_CLIENT_ID}' | base64 -d   # rhoai-gateway
+> oc rollout restart deployment/kube-auth-proxy -n openshift-ingress --context="$CTX"
+> ```
+
+Verify the redirect carries the right client, then log in as
+`developer-a` at `https://rh-ai.${CLUSTER_DOMAIN}`:
+
+```bash
+curl -sk -o /dev/null -w '%{redirect_url}\n' "https://rh-ai.${CLUSTER_DOMAIN}/"
+# expect a Keycloak /auth URL containing client_id=rhoai-gateway
+```
+
+!!! warning "Two failure modes you may still hit"
+
+    - **HTTP 403 after the Keycloak login** — kube-auth-proxy logs
+      `email in id_token (...) isn't verified`. oauth2-proxy hard-rejects
+      unverified emails. The Module 6 realm script sets
+      `emailVerified: true` on the workshop users; if your users predate
+      that fix, update them via the Keycloak admin API or console.
+    - **"Unauthorized" after a successful login** — the dashboard is
+      calling the K8s API with your `aud: rhoai-gateway` token, but the
+      Authentication CR doesn't accept that audience. This module's
+      patch already includes `rhoai-gateway` in `audiences`; if you
+      added it after the fact, expect another 10–15 minute
+      kube-apiserver rollout before logins work.
+
 ---
 
 ## What You Built
@@ -225,6 +332,8 @@ login. Log in as `developer-a`.
 | console-oidc-secret (openshift-config) | Console OIDC client credential |
 | Authentication CR (`type: OIDC`) | Keycloak JWTs are valid K8s API tokens |
 | ClusterRoleBindings (groups) | mcp-admins → cluster-admin, mcp-users → view |
+| rhoai-oidc-client-secret (openshift-ingress) | RHOAI Data Science Gateway OIDC client credential |
+| GatewayConfig `spec.oidc` | OpenShift AI dashboard login via Keycloak |
 
 The identity chain is now: one Keycloak login → one JWT → valid at the MCP
 Gateway (Module 8) **and** at the K8s API — so when the gateway passes the
